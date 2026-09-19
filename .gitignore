@@ -1,0 +1,29 @@
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Rails
+backend/log/*
+backend/tmp/*
+!backend/log/.keep
+!backend/tmp/.keep
+backend/storage/
+backend/config/master.key
+backend/.bundle/
+backend/vendor/bundle/
+
+# Docker volumes
+mysql-data/
