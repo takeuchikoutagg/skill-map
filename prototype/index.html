@@ -9,183 +9,77 @@
 <body>
   <header class="topbar">
     <h1>skill-map</h1>
-    <p class="proto-note">プロトタイプ(見た目の確認用です。ドラッグや保存などの操作はできません)</p>
+    <p class="proto-note">プロトタイプ(データはこのブラウザの中だけに保存されます)</p>
+    <button type="button" class="reset-btn" id="reset-btn">サンプルデータに戻す</button>
   </header>
 
-  <main class="board">
+  <p class="storage-warning" id="storage-warning" hidden>
+    このブラウザでは、データを保存できません。画面を閉じたり再読み込みしたりすると、変更が消えます。
+  </p>
 
-    <!-- 列: 未習得 -->
-    <section class="list" aria-labelledby="list-todo">
-      <div class="list-head">
-        <h2 id="list-todo">未習得</h2>
-        <div class="list-tools">
-          <span class="count">2</span>
-          <button type="button" class="sort-btn" title="高 → 中 → 低の順に並べ替えます">優先度順</button>
+  <!-- ボード(3つの列は、app.js が描画する) -->
+  <main class="board" id="board" aria-label="スキルボード"></main>
+
+  <!-- スキルの追加・編集フォーム -->
+  <dialog id="skill-dialog" aria-labelledby="skill-dialog-title">
+    <form class="dialog-body" id="skill-form" novalidate>
+      <h2 id="skill-dialog-title">スキルを追加</h2>
+
+      <div class="field">
+        <label for="f-name">スキル名 <em>必須</em></label>
+        <input type="text" id="f-name" name="name" maxlength="100" autocomplete="off" placeholder="例: レジ締め">
+        <p class="error" id="err-name" role="alert"></p>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="f-priority">優先度</label>
+          <select id="f-priority" name="priority">
+            <option value="high">高</option>
+            <option value="medium">中</option>
+            <option value="low">低</option>
+          </select>
+          <p class="error" id="err-priority" role="alert"></p>
+        </div>
+        <div class="field">
+          <label for="f-due">期限</label>
+          <input type="date" id="f-due" name="dueDate">
+          <p class="error" id="err-due" role="alert"></p>
         </div>
       </div>
 
-      <div class="cards">
-        <article class="card">
-          <h3><a href="#edit-form">受発注システムの操作</a></h3>
-          <p class="meta">
-            <span class="prio prio-high">優先度: 高</span>
-            <span class="due overdue">期限: 2026-09-10(期限切れ)</span>
-          </p>
-          <p class="note">手順書を先に読む。画面の名前と、業務の流れを対応させて覚える。</p>
-          <a class="delete" href="#delete-confirm">削除</a>
-        </article>
-
-        <article class="card">
-          <h3><a href="#edit-form">クレーム対応</a></h3>
-          <p class="meta">
-            <span class="prio prio-low">優先度: 低</span>
-            <span class="due">期限: 2026-12-31</span>
-          </p>
-          <p class="note"></p>
-          <a class="delete" href="#delete-confirm">削除</a>
-        </article>
+      <div class="field">
+        <label for="f-note">ポイント・考察</label>
+        <textarea id="f-note" name="note" rows="4" maxlength="5000"></textarea>
+        <p class="error" id="err-note" role="alert"></p>
       </div>
 
-      <a class="add-skill" href="#add-form">+ スキルを追加</a>
-    </section>
-
-    <!-- 列: 習得中 -->
-    <section class="list" aria-labelledby="list-doing">
-      <div class="list-head">
-        <h2 id="list-doing">習得中</h2>
-        <div class="list-tools">
-          <span class="count">1</span>
-          <button type="button" class="sort-btn" title="高 → 中 → 低の順に並べ替えます">優先度順</button>
-        </div>
-      </div>
-
-      <div class="cards">
-        <article class="card">
-          <h3><a href="#edit-form">請求書の発行</a></h3>
-          <p class="meta">
-            <span class="prio prio-mid">優先度: 中</span>
-            <span class="due">期限: 2026-10-15</span>
-          </p>
-          <p class="note">締め日に注意。月末は先輩に確認してから発行する。</p>
-          <a class="delete" href="#delete-confirm">削除</a>
-        </article>
-      </div>
-
-      <a class="add-skill" href="#add-form">+ スキルを追加</a>
-    </section>
-
-    <!-- 列: 習得済み -->
-    <section class="list list-done" aria-labelledby="list-done">
-      <div class="list-head">
-        <h2 id="list-done">習得済み</h2>
-        <span class="count">1</span>
-      </div>
-
-      <div class="cards">
-        <article class="card">
-          <h3><a href="#edit-form">レジ締め</a></h3>
-          <p class="meta">
-            <span class="prio prio-mid">優先度: 中</span>
-            <span class="due">期限: -</span>
-          </p>
-          <p class="acquired">習得日: 2026-09-01</p>
-          <p class="note">現金の過不足を必ず二人で確認する。</p>
-          <a class="delete" href="#delete-confirm">削除</a>
-        </article>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- スキルの追加フォーム(CSS の :target で開閉) -->
-  <div class="modal" id="add-form">
-    <a class="backdrop" href="#" aria-label="閉じる"></a>
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="add-title">
-      <h2 id="add-title">スキルを追加</h2>
-
-      <label class="field">
-        <span>スキル名 <em>必須</em></span>
-        <input type="text" maxlength="100" placeholder="例: レジ締め">
-      </label>
-
-      <div class="row">
-        <label class="field">
-          <span>優先度</span>
-          <select>
-            <option>高</option>
-            <option selected>中</option>
-            <option>低</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>期限</span>
-          <input type="date">
-        </label>
-      </div>
-
-      <label class="field">
-        <span>ポイント・考察</span>
-        <textarea rows="4" maxlength="5000"></textarea>
-      </label>
+      <!-- 習得日は、習得済みのスキルを編集するときだけ表示する(編集はできない) -->
+      <p class="readonly" id="acquired-row" hidden>
+        習得日: <span id="acquired-value"></span>
+        (自動で記録されるため、編集できません)
+      </p>
 
       <div class="actions">
-        <a class="btn" href="#">キャンセル</a>
-        <a class="btn primary" href="#">保存</a>
+        <button type="button" class="btn" id="skill-cancel">キャンセル</button>
+        <button type="submit" class="btn primary">保存</button>
       </div>
-    </div>
-  </div>
+    </form>
+  </dialog>
 
-  <!-- スキルの編集フォーム(習得済みのスキルの例。習得日は習得済みのスキルにだけ表示する) -->
-  <div class="modal" id="edit-form">
-    <a class="backdrop" href="#" aria-label="閉じる"></a>
-    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-      <h2 id="edit-title">スキルを編集</h2>
-
-      <label class="field">
-        <span>スキル名 <em>必須</em></span>
-        <input type="text" maxlength="100" value="レジ締め">
-      </label>
-
-      <div class="row">
-        <label class="field">
-          <span>優先度</span>
-          <select>
-            <option>高</option>
-            <option selected>中</option>
-            <option>低</option>
-          </select>
-        </label>
-        <label class="field">
-          <span>期限</span>
-          <input type="date">
-        </label>
-      </div>
-
-      <label class="field">
-        <span>ポイント・考察</span>
-        <textarea rows="4" maxlength="5000">現金の過不足を必ず二人で確認する。</textarea>
-      </label>
-
-      <p class="readonly">習得日: 2026-09-01 (自動で記録されるため、編集できません)</p>
-
+  <!-- 確認ダイアログ(スキルの削除、サンプルデータに戻す) -->
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <div class="dialog-body dialog-small">
+      <h2 id="confirm-title"></h2>
+      <p id="confirm-message"></p>
       <div class="actions">
-        <a class="btn" href="#">キャンセル</a>
-        <a class="btn primary" href="#">保存</a>
+        <button type="button" class="btn" id="confirm-cancel">キャンセル</button>
+        <button type="button" class="btn danger" id="confirm-ok">削除</button>
       </div>
     </div>
-  </div>
+  </dialog>
 
-  <!-- スキルの削除確認 -->
-  <div class="modal" id="delete-confirm">
-    <a class="backdrop" href="#" aria-label="閉じる"></a>
-    <div class="dialog dialog-small" role="alertdialog" aria-modal="true" aria-labelledby="delete-title">
-      <h2 id="delete-title">このスキルを削除しますか?</h2>
-      <p>この操作は取り消せません。</p>
-      <div class="actions">
-        <a class="btn" href="#">キャンセル</a>
-        <a class="btn danger" href="#">削除</a>
-      </div>
-    </div>
-  </div>
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
