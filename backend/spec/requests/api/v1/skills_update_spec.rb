@@ -124,10 +124,13 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       expect(mastered.reload).to have_attributes(status: "mastered", acquired_on: Date.new(2026, 9, 1), priority: "high")
     end
 
-    it "編集できない項目だけが送られたときは、400 を返し、何も変えない" do
+    it "編集できない項目だけが送られたときは、400 で「編集できる項目がありません」と伝え、何も変えない" do
       patch_skill(skill.id, status: "mastered", acquired_on: "2026-01-01", position: 0)
 
       expect(response).to have_http_status(:bad_request)
+      expect(json["errors"]["base"]).to eq([
+        "編集できる項目がありません。スキル名(name)、ポイント・考察(note)、優先度(priority)、期限(due_date)のいずれかを送ってください。"
+      ])
       expect(skill.reload).to have_attributes(status: "learning", acquired_on: nil, position: 3)
     end
 
@@ -206,17 +209,18 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
   end
 
   describe "リクエストの形が正しくない場合(400)" do
-    it "JSON として読めない" do
+    it "JSON として読めないときは、共通の文言(リクエストの形が正しくありません)" do
       patch "/api/v1/skills/#{skill.id}", params: "{bad json", headers: { "CONTENT_TYPE" => "application/json" }
 
       expect(response).to have_http_status(:bad_request)
+      expect(json["errors"]["base"].first).to include("リクエストの形が正しくありません")
     end
 
-    it "スキルの内容が、まったくない" do
+    it "中身がまったくないときは、「編集できる項目がありません」と伝える" do
       patch_skill(skill.id, {})
 
       expect(response).to have_http_status(:bad_request)
-      expect(json["errors"]["base"]).to be_present
+      expect(json["errors"]["base"].first).to start_with("編集できる項目がありません")
     end
   end
 

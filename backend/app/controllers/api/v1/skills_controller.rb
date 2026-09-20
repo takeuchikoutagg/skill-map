@@ -4,6 +4,10 @@ module Api
       # 画面に出す項目(created_at などの、画面に要らないものは返さない)
       RESPONSE_FIELDS = %i[id name note status priority due_date acquired_on position].freeze
 
+      # 編集のリクエストに、編集できる項目が1つもないときの、エラーメッセージ
+      NO_EDITABLE_FIELDS_MESSAGE =
+        "編集できる項目がありません。スキル名(name)、ポイント・考察(note)、優先度(priority)、期限(due_date)のいずれかを送ってください。".freeze
+
       # GET /api/v1/skills
       # すべてのスキルを、状態(未習得 → 習得中 → 習得済み)、並び順の順に返す。
       # 画面側で、状態ごとに列へ分ける。
@@ -48,6 +52,9 @@ module Api
         else
           render_errors(skill)
         end
+      rescue ActionController::ParameterMissing
+        # 編集できる項目が1つも含まれていない(空のリクエスト、状態や習得日だけ、など)
+        render json: { errors: { base: [NO_EDITABLE_FIELDS_MESSAGE] } }, status: :bad_request
       end
 
       private
