@@ -1,7 +1,10 @@
 require "rails_helper"
 
 RSpec.describe "POST /api/v1/skills", type: :request do
-  let(:json) { response.parsed_body }
+  # 返事の中身。let ではなくメソッドにして、リクエストのたびに読み直す
+  def json
+    response.parsed_body
+  end
 
   def post_skill(params)
     post "/api/v1/skills", params: params, as: :json
