@@ -18,7 +18,10 @@
     <section class="list" aria-labelledby="list-todo">
       <div class="list-head">
         <h2 id="list-todo">未習得</h2>
-        <span class="count">2</span>
+        <div class="list-tools">
+          <span class="count">2</span>
+          <button type="button" class="sort-btn" title="高 → 中 → 低の順に並べ替えます">優先度順</button>
+        </div>
       </div>
 
       <div class="cards">
@@ -28,7 +31,6 @@
             <span class="prio prio-high">優先度: 高</span>
             <span class="due overdue">期限: 2026-09-10(期限切れ)</span>
           </p>
-          <p class="acquired">習得日: -</p>
           <p class="note">手順書を先に読む。画面の名前と、業務の流れを対応させて覚える。</p>
           <a class="delete" href="#delete-confirm">削除</a>
         </article>
@@ -39,7 +41,6 @@
             <span class="prio prio-low">優先度: 低</span>
             <span class="due">期限: 2026-12-31</span>
           </p>
-          <p class="acquired">習得日: -</p>
           <p class="note"></p>
           <a class="delete" href="#delete-confirm">削除</a>
         </article>
@@ -52,7 +53,10 @@
     <section class="list" aria-labelledby="list-doing">
       <div class="list-head">
         <h2 id="list-doing">習得中</h2>
-        <span class="count">1</span>
+        <div class="list-tools">
+          <span class="count">1</span>
+          <button type="button" class="sort-btn" title="高 → 中 → 低の順に並べ替えます">優先度順</button>
+        </div>
       </div>
 
       <div class="cards">
@@ -62,7 +66,6 @@
             <span class="prio prio-mid">優先度: 中</span>
             <span class="due">期限: 2026-10-15</span>
           </p>
-          <p class="acquired">習得日: -</p>
           <p class="note">締め日に注意。月末は先輩に確認してから発行する。</p>
           <a class="delete" href="#delete-confirm">削除</a>
         </article>
@@ -90,14 +93,6 @@
           <a class="delete" href="#delete-confirm">削除</a>
         </article>
       </div>
-
-      <a class="add-skill" href="#add-form">+ スキルを追加</a>
-    </section>
-
-    <!-- 列の追加 -->
-    <section class="list list-new" aria-label="列の追加">
-      <a class="add-list" href="#">+ 列を追加</a>
-      <p class="hint">追加した列は削除できません。名前は後から変更できます。</p>
     </section>
 
   </main>
@@ -133,8 +128,6 @@
         <textarea rows="4" maxlength="5000"></textarea>
       </label>
 
-      <p class="readonly">習得日: - (習得済みの列に移すと、自動で記録されます)</p>
-
       <div class="actions">
         <a class="btn" href="#">キャンセル</a>
         <a class="btn primary" href="#">保存</a>
@@ -142,7 +135,7 @@
     </div>
   </div>
 
-  <!-- スキルの編集フォーム -->
+  <!-- スキルの編集フォーム(習得済みのスキルの例。習得日は習得済みのスキルにだけ表示する) -->
   <div class="modal" id="edit-form">
     <a class="backdrop" href="#" aria-label="閉じる"></a>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="edit-title">

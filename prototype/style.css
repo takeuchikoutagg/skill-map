@@ -85,6 +85,27 @@ body {
   color: var(--done-accent);
 }
 
+.list-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sort-btn {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.sort-btn:hover {
+  background: var(--bg);
+}
+
 .count {
   min-width: 24px;
   padding: 0 8px;
@@ -184,8 +205,7 @@ body {
 }
 
 /* ---------- 追加ボタン ---------- */
-.add-skill,
-.add-list {
+.add-skill {
   display: block;
   margin-top: 10px;
   padding: 8px 10px;
@@ -195,25 +215,9 @@ body {
   font-size: 14px;
 }
 
-.add-skill:hover,
-.add-list:hover {
+.add-skill:hover {
   background: rgba(0, 0, 0, 0.08);
   color: var(--text);
-}
-
-.list-new {
-  background: rgba(255, 255, 255, 0.5);
-  border: 2px dashed var(--border);
-}
-
-.list-new .add-list {
-  margin-top: 0;
-}
-
-.hint {
-  margin: 6px 10px 2px;
-  font-size: 12px;
-  color: var(--muted);
 }
 
 /* ---------- ダイアログ(:target で開閉) ---------- */
@@ -345,6 +349,7 @@ body {
 
 /* ---------- キーボード操作のとき ---------- */
 a:focus-visible,
+button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
