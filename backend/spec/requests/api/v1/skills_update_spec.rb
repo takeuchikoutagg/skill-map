@@ -82,7 +82,7 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
 
       get "/api/v1/skills"
 
-      expect(json.map { |s| s["name"] }).to eq(["更新後"])
+      expect(json.map { |s| s["name"] }).to eq([ "更新後" ])
     end
 
     it "ほかのスキルには影響しない" do
@@ -147,7 +147,7 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       patch_skill(skill.id, name: "", priority: "high")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]).to eq("name" => ["スキル名を入力してください"])
+      expect(json["errors"]).to eq("name" => [ "スキル名を入力してください" ])
       expect(skill.reload).to have_attributes(name: "請求書の発行", priority: "medium")
     end
 
@@ -155,26 +155,26 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       patch_skill(skill.id, name: "　 ")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["name"]).to eq(["スキル名を入力してください"])
+      expect(json["errors"]["name"]).to eq([ "スキル名を入力してください" ])
     end
 
     it "スキル名が101文字" do
       patch_skill(skill.id, name: "あ" * 101)
 
-      expect(json["errors"]["name"]).to eq(["スキル名は100文字以内で入力してください"])
+      expect(json["errors"]["name"]).to eq([ "スキル名は100文字以内で入力してください" ])
     end
 
     it "ポイント・考察が5,001文字" do
       patch_skill(skill.id, note: "あ" * 5001)
 
-      expect(json["errors"]["note"]).to eq(["ポイント・考察は5000文字以内で入力してください"])
+      expect(json["errors"]["note"]).to eq([ "ポイント・考察は5000文字以内で入力してください" ])
     end
 
     it "優先度が、高・中・低以外" do
       patch_skill(skill.id, priority: "urgent")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["priority"]).to eq(["優先度は high・medium・low のいずれかにしてください"])
+      expect(json["errors"]["priority"]).to eq([ "優先度は high・medium・low のいずれかにしてください" ])
       expect(skill.reload.priority).to eq("medium")
     end
 
@@ -182,7 +182,7 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       patch_skill(skill.id, due_date: "abc")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["due_date"]).to eq(["期限は不正な値です"])
+      expect(json["errors"]["due_date"]).to eq([ "期限は不正な値です" ])
       expect(skill.reload.due_date).to eq(Date.new(2026, 10, 15))
     end
 
@@ -198,7 +198,7 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       patch_skill(0, name: "x")
 
       expect(response).to have_http_status(:not_found)
-      expect(json["errors"]["base"]).to eq(["指定されたスキルが見つかりません。"])
+      expect(json["errors"]["base"]).to eq([ "指定されたスキルが見つかりません。" ])
     end
 
     it "ほかのスキルは変更されない" do

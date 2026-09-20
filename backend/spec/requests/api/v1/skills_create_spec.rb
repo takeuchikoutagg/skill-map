@@ -132,20 +132,20 @@ RSpec.describe "POST /api/v1/skills", type: :request do
       expect { post_skill(name: "") }.not_to change(Skill, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]).to eq("name" => ["スキル名を入力してください"])
+      expect(json["errors"]).to eq("name" => [ "スキル名を入力してください" ])
     end
 
     it "スキル名が空白だけ" do
       post_skill(name: "   ")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["name"]).to eq(["スキル名を入力してください"])
+      expect(json["errors"]["name"]).to eq([ "スキル名を入力してください" ])
     end
 
     it "スキル名が101文字" do
       post_skill(name: "あ" * 101)
 
-      expect(json["errors"]["name"]).to eq(["スキル名は100文字以内で入力してください"])
+      expect(json["errors"]["name"]).to eq([ "スキル名は100文字以内で入力してください" ])
     end
 
     it "スキル名が100文字ちょうどなら、追加できる" do
@@ -158,28 +158,28 @@ RSpec.describe "POST /api/v1/skills", type: :request do
       post_skill(name: "a", note: "あ" * 5001)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["note"]).to eq(["ポイント・考察は5000文字以内で入力してください"])
+      expect(json["errors"]["note"]).to eq([ "ポイント・考察は5000文字以内で入力してください" ])
     end
 
     it "優先度が、高・中・低以外" do
       post_skill(name: "a", priority: "urgent")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["priority"]).to eq(["優先度は high・medium・low のいずれかにしてください"])
+      expect(json["errors"]["priority"]).to eq([ "優先度は high・medium・low のいずれかにしてください" ])
     end
 
     it "状態が、未習得・習得中・習得済み以外" do
       expect { post_skill(name: "a", status: "bogus") }.not_to change(Skill, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["status"]).to eq(["状態は unlearned・learning・mastered のいずれかにしてください"])
+      expect(json["errors"]["status"]).to eq([ "状態は unlearned・learning・mastered のいずれかにしてください" ])
     end
 
     it "期限が、日付として読めない(黙って空にしない)" do
       expect { post_skill(name: "a", due_date: "abc") }.not_to change(Skill, :count)
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["due_date"]).to eq(["期限は不正な値です"])
+      expect(json["errors"]["due_date"]).to eq([ "期限は不正な値です" ])
     end
 
     it "期限が、存在しない日付" do

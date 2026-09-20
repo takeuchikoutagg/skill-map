@@ -62,7 +62,7 @@ class SkillMover
 
     # 移動先の列(移動するスキルは除く)に、指定の位置で差し込み、0 から連番にする
     siblings = Skill.where(status: status).where.not(id: skill.id).order(:position, :id).to_a
-    index = [position, siblings.size].min
+    index = [ position, siblings.size ].min
 
     skill.assign_attributes(status: status, acquired_on: next_acquired_on(from_status), position: index)
     ordered = siblings.insert(index, skill)

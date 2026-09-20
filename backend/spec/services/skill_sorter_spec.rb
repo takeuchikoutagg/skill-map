@@ -9,7 +9,7 @@ RSpec.describe SkillSorter do
 
       expect(sorter.call).to be(true)
       expect(sorter.skills.map(&:name)).to eq(%w[高 低])
-      expect(sorter.skills.map(&:position)).to eq([0, 1])
+      expect(sorter.skills.map(&:position)).to eq([ 0, 1 ])
       expect(sorter.errors).to be_empty
     end
 
@@ -17,7 +17,7 @@ RSpec.describe SkillSorter do
       sorter = SkillSorter.new("mastered")
 
       expect(sorter.call).to be(false)
-      expect(sorter.errors.full_messages).to eq(["習得済みの列は、優先度順に並べ替えできません。"])
+      expect(sorter.errors.full_messages).to eq([ "習得済みの列は、優先度順に並べ替えできません。" ])
       expect(sorter.skills).to eq([])
     end
 
@@ -42,7 +42,7 @@ RSpec.describe SkillSorter do
         end
         # 期待する結果: 「いまの順番(並び順、同じなら id)」を土台に、優先度で安定的に並べる
         before = Skill.where(status: :learning).order(:position, :id).to_a
-        expected = before.each_with_index.sort_by { |s, i| [Skill.priorities[s.priority], i] }.map { |s, _| s.id }
+        expected = before.each_with_index.sort_by { |s, i| [ Skill.priorities[s.priority], i ] }.map { |s, _| s.id }
 
         sorter = SkillSorter.new("learning")
         expect(sorter.call).to be(true)

@@ -33,7 +33,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
     # 優先度が、ばらばらの列(低 → 中 → 高 → 中 → 低 → 高)
     let!(:skills) do
       create_column(:unlearned, [
-        ["低1", :low], ["中1", :medium], ["高1", :high], ["中2", :medium], ["低2", :low], ["高2", :high]
+        [ "低1", :low ], [ "中1", :medium ], [ "高1", :high ], [ "中2", :medium ], [ "低2", :low ], [ "高2", :high ]
       ])
     end
 
@@ -57,14 +57,14 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
     it "並べ替えたあとの並び順は、0 からの連番になる" do
       sort_column("unlearned")
 
-      expect(column(:unlearned).map(&:last)).to eq([0, 1, 2, 3, 4, 5])
+      expect(column(:unlearned).map(&:last)).to eq([ 0, 1, 2, 3, 4, 5 ])
     end
 
     it "並べ替えたあとの、その列のスキルを、順番どおりに返す(一覧(GET)と同じ項目)" do
       sort_column("unlearned")
 
       expect(json.map { |s| s["name"] }).to eq(%w[高1 高2 中1 中2 低1 低2])
-      expect(json.map { |s| s["position"] }).to eq([0, 1, 2, 3, 4, 5])
+      expect(json.map { |s| s["position"] }).to eq([ 0, 1, 2, 3, 4, 5 ])
       expect(json.first.keys).to match_array(%w[id name note status priority due_date acquired_on position])
     end
 
@@ -107,7 +107,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
 
       post "/api/v1/skills", params: { name: "新規", status: "unlearned", priority: "high" }, as: :json
 
-      expect(column(:unlearned).last).to eq(["新規", 6])
+      expect(column(:unlearned).last).to eq([ "新規", 6 ])
     end
 
     it "並べ替えたあとも、移動(move)で、手動で順番を変えられる" do
@@ -122,20 +122,20 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
 
   describe "習得中の列" do
     it "習得中の列も、同じように並べ替えられる" do
-      create_column(:learning, [["低", :low], ["高", :high], ["中", :medium]])
+      create_column(:learning, [ [ "低", :low ], [ "高", :high ], [ "中", :medium ] ])
 
       sort_column("learning")
 
       expect(response).to have_http_status(:ok)
-      expect(column(:learning)).to eq([["高", 0], ["中", 1], ["低", 2]])
+      expect(column(:learning)).to eq([ [ "高", 0 ], [ "中", 1 ], [ "低", 2 ] ])
     end
   end
 
   describe "ほかの列には、影響しない" do
     it "指定していない列(未習得・習得中・習得済み)の並び順は、変わらない" do
-      create_column(:unlearned, [["U低", :low], ["U高", :high]])
-      others = create_column(:learning, [["L低", :low], ["L高", :high]]) +
-               create_column(:mastered, [["M低", :low], ["M高", :high]])
+      create_column(:unlearned, [ [ "U低", :low ], [ "U高", :high ] ])
+      others = create_column(:learning, [ [ "L低", :low ], [ "L高", :high ] ]) +
+               create_column(:mastered, [ [ "M低", :low ], [ "M高", :high ] ])
       before = snapshot(others)
 
       sort_column("unlearned")
@@ -152,7 +152,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
 
       sort_column("unlearned")
 
-      expect(column(:unlearned)).to eq([["高", 0], ["低", 1]])
+      expect(column(:unlearned)).to eq([ [ "高", 0 ], [ "低", 1 ] ])
     end
   end
 
@@ -165,19 +165,19 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
     end
 
     it "1件だけの列は、そのまま返す" do
-      create_column(:unlearned, [["A", :low]])
+      create_column(:unlearned, [ [ "A", :low ] ])
 
       sort_column("unlearned")
 
       expect(response).to have_http_status(:ok)
-      expect(json.map { |s| s["name"] }).to eq(["A"])
+      expect(json.map { |s| s["name"] }).to eq([ "A" ])
     end
   end
 
   describe "プロトタイプ(prototype/logic.js)のサンプルと、同じ結果になる" do
     it "未習得(低・中・高)は、高・中・低になる。習得中(中・高)は、高・中になる" do
-      create_column(:unlearned, [["クレーム対応", :low], ["発注書の確認", :medium], ["受発注システムの操作", :high]])
-      create_column(:learning, [["請求書の発行", :medium], ["月次レポートの作成", :high]])
+      create_column(:unlearned, [ [ "クレーム対応", :low ], [ "発注書の確認", :medium ], [ "受発注システムの操作", :high ] ])
+      create_column(:learning, [ [ "請求書の発行", :medium ], [ "月次レポートの作成", :high ] ])
 
       sort_column("unlearned")
       sort_column("learning")
@@ -189,8 +189,8 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
 
   describe "並べ替えできない・入力が正しくない場合(422、日本語のメッセージ。何も変更されない)" do
     let!(:all_skills) do
-      create_column(:unlearned, [["U低", :low], ["U高", :high]]) +
-        create_column(:mastered, [["M低", :low], ["M高", :high]])
+      create_column(:unlearned, [ [ "U低", :low ], [ "U高", :high ] ]) +
+        create_column(:mastered, [ [ "M低", :low ], [ "M高", :high ] ])
     end
 
     it "習得済みの列は、並べ替えできない" do
@@ -199,7 +199,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
       sort_column("mastered")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["base"]).to eq(["習得済みの列は、優先度順に並べ替えできません。"])
+      expect(json["errors"]["base"]).to eq([ "習得済みの列は、優先度順に並べ替えできません。" ])
       expect(snapshot(all_skills)).to eq(before)
     end
 
@@ -209,7 +209,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
       sort_column("bogus")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["status"]).to eq(["状態は unlearned・learning・mastered のいずれかにしてください"])
+      expect(json["errors"]["status"]).to eq([ "状態は unlearned・learning・mastered のいずれかにしてください" ])
       expect(snapshot(all_skills)).to eq(before)
     end
 
@@ -217,7 +217,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
       sort_column("")
 
       expect(response).to have_http_status(:unprocessable_content)
-      expect(json["errors"]["status"]).to eq(["状態を入力してください"])
+      expect(json["errors"]["status"]).to eq([ "状態を入力してください" ])
     end
   end
 
@@ -248,7 +248,7 @@ RSpec.describe "POST /api/v1/skills/sort", type: :request do
 
   describe "途中で失敗したとき" do
     it "並び順の保存の途中で失敗したら、それまでの並び替えもなかったことになる(まとめて行うため)" do
-      skills = create_column(:unlearned, [["低", :low], ["中", :medium], ["高", :high]])
+      skills = create_column(:unlearned, [ [ "低", :low ], [ "中", :medium ], [ "高", :high ] ])
       before = snapshot(skills)
       calls = 0
       allow_any_instance_of(SkillSorter).to receive(:save_position).and_wrap_original do |original, *args|
