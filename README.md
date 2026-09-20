@@ -67,6 +67,7 @@ Rails(API モード)と MySQL は、Docker で動かします。パソコンに 
 | テーブルを作る・更新する | `docker compose exec web bin/rails db:migrate` |
 | サンプルのスキルを入れる(開発用) | `docker compose exec web bin/rails db:seed`(スキルが1件もないときだけ、6件入ります) |
 | スキルの一覧を見る | `curl http://localhost:3001/api/v1/skills`(ブラウザで開いてもよい) |
+| スキルを追加する | `curl -X POST http://localhost:3001/api/v1/skills -H "Content-Type: application/json" -d '{"name":"レジ締め","status":"learning"}'` |
 | MySQL の中を見る | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'` |
 
 - **ポート**: API は `http://localhost:3001` で動きます(自分のパソコンからだけ接続できます)。
