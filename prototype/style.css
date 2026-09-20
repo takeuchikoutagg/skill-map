@@ -31,6 +31,11 @@ body {
   line-height: 1.6;
 }
 
+button {
+  font: inherit;
+  color: inherit;
+}
+
 /* ---------- ヘッダー ---------- */
 .topbar {
   display: flex;
@@ -53,6 +58,30 @@ body {
   color: var(--muted);
 }
 
+.reset-btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.reset-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.storage-warning {
+  margin: 0;
+  padding: 8px 20px;
+  background: var(--mid-bg);
+  color: var(--mid-text);
+  font-size: 13px;
+}
+
 /* ---------- ボード ---------- */
 .board {
   display: flex;
@@ -63,10 +92,17 @@ body {
 }
 
 .list {
-  flex: 0 0 300px;
+  flex: 1 0 300px;
+  max-width: 420px;
   background: var(--list-bg);
   border-radius: var(--radius);
   padding: 12px;
+  outline: 2px solid transparent;
+  transition: outline-color 0.1s;
+}
+
+.list.drop-target {
+  outline-color: var(--primary);
 }
 
 .list-head {
@@ -96,14 +132,18 @@ body {
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
-  color: var(--text);
-  font: inherit;
   font-size: 12px;
   cursor: pointer;
 }
 
-.sort-btn:hover {
+.sort-btn:hover:not(:disabled) {
   background: var(--bg);
+}
+
+.sort-btn:disabled {
+  color: var(--muted);
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .count {
@@ -120,6 +160,24 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-height: 48px;
+}
+
+.empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* ドロップ位置を示す線 */
+.drop-line {
+  height: 3px;
+  margin: -4px 0;
+  border-radius: 2px;
+  background: var(--primary);
+  pointer-events: none;
 }
 
 /* ---------- カード ---------- */
@@ -128,6 +186,11 @@ body {
   border-radius: var(--radius);
   padding: 12px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  cursor: grab;
+}
+
+.card.dragging {
+  opacity: 0.4;
 }
 
 .card h3 {
@@ -135,12 +198,16 @@ body {
   font-size: 15px;
 }
 
-.card h3 a {
-  color: inherit;
-  text-decoration: none;
+.card-title {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
 }
 
-.card h3 a:hover {
+.card-title:hover {
   text-decoration: underline;
 }
 
@@ -159,11 +226,10 @@ body {
 }
 
 .prio-high { background: var(--high-bg); color: var(--high-text); }
-.prio-mid  { background: var(--mid-bg);  color: var(--mid-text); }
-.prio-low  { background: var(--low-bg);  color: var(--low-text); }
+.prio-medium { background: var(--mid-bg); color: var(--mid-text); }
+.prio-low { background: var(--low-bg); color: var(--low-text); }
 
 .due {
-  padding: 1px 0;
   color: var(--muted);
 }
 
@@ -175,13 +241,16 @@ body {
 .acquired {
   margin: 0 0 6px;
   font-size: 12px;
-  color: var(--muted);
+  color: var(--done-accent);
+  font-weight: 600;
 }
 
 .note {
   margin: 0 0 8px;
   font-size: 13px;
-  /* 長い文章は3行で省略する */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* 長い文章は3行で省略する(全文は、カードをクリックして開く編集フォームで見られる) */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   line-clamp: 3;
@@ -189,30 +258,32 @@ body {
   overflow: hidden;
 }
 
-.note:empty {
-  display: none;
-}
-
 .delete {
-  display: inline-block;
+  padding: 0;
+  border: 0;
+  background: none;
   font-size: 12px;
   color: var(--danger);
-  text-decoration: none;
+  cursor: pointer;
 }
 
 .delete:hover {
   text-decoration: underline;
 }
 
-/* ---------- 追加ボタン ---------- */
+/* ---------- スキル追加ボタン ---------- */
 .add-skill {
   display: block;
+  width: 100%;
   margin-top: 10px;
   padding: 8px 10px;
+  border: 0;
   border-radius: var(--radius);
+  background: none;
   color: var(--muted);
-  text-decoration: none;
   font-size: 14px;
+  text-align: left;
+  cursor: pointer;
 }
 
 .add-skill:hover {
@@ -220,59 +291,45 @@ body {
   color: var(--text);
 }
 
-/* ---------- ダイアログ(:target で開閉) ---------- */
-.modal {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 10;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
+/* ---------- ダイアログ ---------- */
+dialog {
+  width: calc(100% - 32px);
+  max-width: 440px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
-.modal:target {
-  display: flex;
-}
-
-.backdrop {
-  position: absolute;
-  inset: 0;
+dialog::backdrop {
   background: rgba(0, 0, 0, 0.45);
 }
 
-.dialog {
-  position: relative;
-  width: 100%;
-  max-width: 440px;
-  max-height: 100%;
-  overflow-y: auto;
+.dialog-body {
   padding: 20px;
-  background: var(--surface);
-  border-radius: 12px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .dialog-small {
   max-width: 360px;
 }
 
-.dialog h2 {
+dialog h2 {
   margin: 0 0 14px;
   font-size: 18px;
 }
 
-.dialog p {
+dialog p {
   margin: 0 0 12px;
 }
 
 .field {
-  display: block;
-  margin-bottom: 12px;
   flex: 1;
+  margin-bottom: 12px;
 }
 
-.field span {
+.field label {
   display: block;
   margin-bottom: 4px;
   font-size: 13px;
@@ -302,6 +359,17 @@ body {
   resize: vertical;
 }
 
+.error {
+  min-height: 0;
+  margin: 4px 0 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.error:empty {
+  display: none;
+}
+
 .row {
   display: flex;
   gap: 12px;
@@ -326,9 +394,9 @@ body {
   padding: 8px 16px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  color: var(--text);
-  text-decoration: none;
+  background: var(--surface);
   font-size: 14px;
+  cursor: pointer;
 }
 
 .btn:hover {
@@ -348,7 +416,6 @@ body {
 }
 
 /* ---------- キーボード操作のとき ---------- */
-a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
