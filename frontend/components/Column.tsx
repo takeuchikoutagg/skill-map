@@ -4,7 +4,14 @@ import { STATUS_LABELS, type Skill, type Status } from "@/lib/types";
 const COMING_SOON = "この機能は、次のステップで作ります";
 
 // 列1つ(未習得・習得中・習得済みのどれか)。docs/03-画面一覧.md の「列の見出し」の表示項目どおり。
-export function Column({ status, skills, today }: { status: Status; skills: Skill[]; today: string }) {
+type Props = {
+  status: Status;
+  skills: Skill[];
+  today: string;
+  onAdd: (status: Status) => void; // 「+ スキルを追加」が押されたとき
+};
+
+export function Column({ status, skills, today, onAdd }: Props) {
   const headingId = `list-${status}`;
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
@@ -33,7 +40,7 @@ export function Column({ status, skills, today }: { status: Status; skills: Skil
       </div>
 
       {editable && (
-        <button type="button" className="add-skill" disabled title={COMING_SOON}>
+        <button type="button" className="add-skill" onClick={() => onAdd(status)}>
           + スキルを追加
         </button>
       )}

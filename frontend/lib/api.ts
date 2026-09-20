@@ -1,5 +1,6 @@
 // バックエンド(Rails API)との通信。API の仕様は docs/02-機能要件.md。
-// F2 では、スキルの一覧の取得だけ。追加・編集・移動などは、あとのステップで足す。
+// 一覧の取得は、Next.js のサーバーから。追加などの操作は、ブラウザから直接 API を呼ぶ(そのため、CORS の許可が関わる)。
+import type { SkillInput } from "@/lib/board";
 import type { Priority, Skill, Status } from "@/lib/types";
 
 // API が返す、スキル1件の形。項目名は snake_case(Rails の慣習)
@@ -58,6 +59,12 @@ export function serverApiUrl(): string {
   return (process.env.API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 }
 
+// ブラウザから、API を呼ぶときの場所。既定は、開発中のバックエンド。
+// NEXT_PUBLIC_ で始まる環境変数は、ブラウザに渡される。本番で、同じオリジンから API を呼ぶ(Nginx で振り分ける)ときは、空にする。
+export function browserApiUrl(): string {
+  return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
+}
+
 // エラーの返事({ "errors": { "name": ["…"] } })を読んで、ApiError にする。読めなければ、メッセージなしの ApiError
 export async function parseApiError(response: Response): Promise<ApiError> {
   try {
@@ -97,4 +104,32 @@ export async function fetchSkills(baseUrl: string = serverApiUrl()): Promise<Ski
     throw new ApiError(response.status, { base: ["API の返事の形が正しくありません。"] });
   }
   return (body as ApiSkill[]).map(toSkill);
+}
+
+// POST /api/v1/skills: スキルを追加する。追加したスキルは、指定した状態の列の末尾に置かれる(並び順は、サーバーが決める)。
+// 成功したら、作られたスキルを返す。入力が正しくないとき(422)などは、ApiError を投げる。
+// status は、追加先の列(習得済みには追加できない)。
+export async function createSkill(
+  status: Status,
+  input: SkillInput,
+  baseUrl: string = browserApiUrl(),
+): Promise<Skill> {
+  const response = await fetch(`${baseUrl}/api/v1/skills`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      name: input.name,
+      // 空のポイント・考察と期限は、「ない」(null)として送る
+      note: input.note === "" ? null : input.note,
+      status,
+      priority: input.priority,
+      due_date: input.dueDate === "" ? null : input.dueDate,
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+  return toSkill((await response.json()) as ApiSkill);
 }

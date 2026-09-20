@@ -21,5 +21,5 @@ export default async function Home() {
     return <LoadError message={loadErrorMessage(error, serverApiUrl())} />;
   }
 
-  return <Board skills={skills} today={today} />;
+  return <Board initialSkills={skills} today={today} />;
 }

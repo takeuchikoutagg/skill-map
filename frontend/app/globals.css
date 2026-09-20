@@ -452,3 +452,13 @@ textarea:focus-visible {
   font-size: 13px;
   color: var(--muted);
 }
+
+/* ---------- 追加・編集フォームの、項目に結びつかないエラー(接続できないときなど) ---------- */
+.form-error {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--high-bg);
+  color: var(--high-text);
+  font-size: 13px;
+}
