@@ -5,4 +5,9 @@ class ApplicationController < ActionController::API
     render json: { errors: { base: ["リクエストの形が正しくありません。スキルの内容を JSON で送ってください。"] } },
            status: :bad_request
   end
+
+  # 指定された ID のスキルがないときは、404 を返す
+  rescue_from ActiveRecord::RecordNotFound do
+    render json: { errors: { base: ["指定されたスキルが見つかりません。"] } }, status: :not_found
+  end
 end
