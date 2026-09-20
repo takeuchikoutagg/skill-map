@@ -32,14 +32,14 @@
 
 設計ドキュメントは [docs/](docs/) にまとめています。
 
-| ドキュメント | 内容 | URL |
-|---|---|---|
-| 01. 要件定義 | 背景・課題、目的、スコープ、制約、用語 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/01-%E8%A6%81%E4%BB%B6%E5%AE%9A%E7%BE%A9.md |
-| 02. 機能要件 | 機能一覧と詳細、習得日のルール、非機能要件、API 一覧 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/02-%E6%A9%9F%E8%83%BD%E8%A6%81%E4%BB%B6.md |
-| 03. 画面一覧 | ワイヤーフレーム、表示項目、操作、画面遷移図 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/03-%E7%94%BB%E9%9D%A2%E4%B8%80%E8%A6%A7.md |
-| 04. ユースケース | ユースケース図と記述、習得日の状態遷移 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/04-%E3%83%A6%E3%83%BC%E3%82%B9%E3%82%B1%E3%83%BC%E3%82%B9.md |
-| 05. ER図 | ER図、テーブル定義、守るべきルール、将来の拡張 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/05-ER%E5%9B%B3.md |
-| 06. 技術スタック | 技術一覧、システム構成図、AWS のコスト対策、設計の方針 | https://github.com/takeuchikoutagg/skill-map/blob/main/docs/06-%E6%8A%80%E8%A1%93%E3%82%B9%E3%82%BF%E3%83%83%E3%82%AF.md |
+| ドキュメント | 内容 |
+|---|---|
+| [01. 要件定義](docs/01-要件定義.md) | 背景・課題、目的、スコープ、制約、用語 |
+| [02. 機能要件](docs/02-機能要件.md) | 機能一覧と詳細、習得日のルール、非機能要件、API 一覧 |
+| [03. 画面一覧](docs/03-画面一覧.md) | ワイヤーフレーム、表示項目、操作、画面遷移図 |
+| [04. ユースケース](docs/04-ユースケース.md) | ユースケース図と記述、習得日の状態遷移 |
+| [05. ER図](docs/05-ER図.md) | ER図、テーブル定義、守るべきルール、将来の拡張 |
+| [06. 技術スタック](docs/06-技術スタック.md) | 技術一覧、システム構成図、AWS のコスト対策、設計の方針 |
 
 ## プロトタイプ
 
