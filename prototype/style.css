@@ -1,0 +1,369 @@
+:root {
+  --bg: #f1f3f5;
+  --surface: #ffffff;
+  --list-bg: #e4e7eb;
+  --text: #1f2933;
+  --muted: #616e7c;
+  --border: #cbd2d9;
+  --primary: #2563eb;
+  --primary-text: #ffffff;
+  --danger: #c62828;
+  --high-bg: #fde8e8;
+  --high-text: #9b1c1c;
+  --mid-bg: #fef3c7;
+  --mid-text: #8a5a00;
+  --low-bg: #dbeafe;
+  --low-text: #1e40af;
+  --done-accent: #2e7d32;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ---------- ヘッダー ---------- */
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.proto-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- ボード ---------- */
+.board {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.list {
+  flex: 0 0 300px;
+  background: var(--list-bg);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.list-head h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.list-done .list-head h2 {
+  color: var(--done-accent);
+}
+
+.count {
+  min-width: 24px;
+  padding: 0 8px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ---------- カード ---------- */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.card h3 a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card h3 a:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
+.prio {
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.prio-high { background: var(--high-bg); color: var(--high-text); }
+.prio-mid  { background: var(--mid-bg);  color: var(--mid-text); }
+.prio-low  { background: var(--low-bg);  color: var(--low-text); }
+
+.due {
+  padding: 1px 0;
+  color: var(--muted);
+}
+
+.due.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.acquired {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.note {
+  margin: 0 0 8px;
+  font-size: 13px;
+  /* 長い文章は3行で省略する */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.note:empty {
+  display: none;
+}
+
+.delete {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--danger);
+  text-decoration: none;
+}
+
+.delete:hover {
+  text-decoration: underline;
+}
+
+/* ---------- 追加ボタン ---------- */
+.add-skill,
+.add-list {
+  display: block;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.add-skill:hover,
+.add-list:hover {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text);
+}
+
+.list-new {
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px dashed var(--border);
+}
+
+.list-new .add-list {
+  margin-top: 0;
+}
+
+.hint {
+  margin: 6px 10px 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- ダイアログ(:target で開閉) ---------- */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal:target {
+  display: flex;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.dialog {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding: 20px;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.dialog-small {
+  max-width: 360px;
+}
+
+.dialog h2 {
+  margin: 0 0 14px;
+  font-size: 18px;
+}
+
+.dialog p {
+  margin: 0 0 12px;
+}
+
+.field {
+  display: block;
+  margin-bottom: 12px;
+  flex: 1;
+}
+
+.field span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field em {
+  margin-left: 4px;
+  color: var(--danger);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.row {
+  display: flex;
+  gap: 12px;
+}
+
+.readonly {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+
+.btn:hover {
+  background: var(--bg);
+}
+
+.btn.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+.btn.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+}
+
+/* ---------- キーボード操作のとき ---------- */
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- 狭い画面 ---------- */
+@media (max-width: 600px) {
+  .board {
+    padding: 12px;
+  }
+
+  .list {
+    flex-basis: 260px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 0;
+  }
+}
