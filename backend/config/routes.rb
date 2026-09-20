@@ -13,6 +13,10 @@ Rails.application.routes.draw do
         member do
           patch :move   # PATCH /api/v1/skills/:id/move
         end
+
+        collection do
+          post :sort    # POST /api/v1/skills/sort
+        end
       end
     end
   end
