@@ -51,26 +51,26 @@ RSpec.describe "DELETE /api/v1/skills/:id", type: :request do
     it "真ん中を削除すると、後ろのスキルが1つずつ前に詰まる" do
       delete "/api/v1/skills/#{skills[1].id}"
 
-      expect(column(:unlearned)).to eq([["A", 0], ["C", 1], ["D", 2]])
+      expect(column(:unlearned)).to eq([ [ "A", 0 ], [ "C", 1 ], [ "D", 2 ] ])
     end
 
     it "先頭を削除すると、すべてが1つずつ前に詰まる" do
       delete "/api/v1/skills/#{skills[0].id}"
 
-      expect(column(:unlearned)).to eq([["B", 0], ["C", 1], ["D", 2]])
+      expect(column(:unlearned)).to eq([ [ "B", 0 ], [ "C", 1 ], [ "D", 2 ] ])
     end
 
     it "末尾を削除しても、ほかの並び順は変わらない" do
       delete "/api/v1/skills/#{skills[3].id}"
 
-      expect(column(:unlearned)).to eq([["A", 0], ["B", 1], ["C", 2]])
+      expect(column(:unlearned)).to eq([ [ "A", 0 ], [ "B", 1 ], [ "C", 2 ] ])
     end
 
     it "続けて削除しても、いつも 0 からの連番になる" do
       delete "/api/v1/skills/#{skills[1].id}"
       delete "/api/v1/skills/#{skills[2].id}"
 
-      expect(column(:unlearned)).to eq([["A", 0], ["D", 1]])
+      expect(column(:unlearned)).to eq([ [ "A", 0 ], [ "D", 1 ] ])
     end
 
     it "最後の1つを削除すると、その列は空になる" do
@@ -87,17 +87,17 @@ RSpec.describe "DELETE /api/v1/skills/:id", type: :request do
 
       delete "/api/v1/skills/#{first.id}"
 
-      expect(column(:unlearned)).to eq([["B", 0], ["C", 1]])
+      expect(column(:unlearned)).to eq([ [ "B", 0 ], [ "C", 1 ] ])
     end
 
     it "ほかの列(状態)のスキルには、影響しない" do
       learning = create_column(:learning, %w[L1 L2])
       mastered = Skill.create!(name: "M1", status: :mastered, acquired_on: Date.new(2026, 9, 1), position: 0)
-      before = (learning + [mastered]).map { |s| s.reload.attributes }
+      before = (learning + [ mastered ]).map { |s| s.reload.attributes }
 
       delete "/api/v1/skills/#{skills[1].id}"
 
-      expect((learning + [mastered]).map { |s| s.reload.attributes }).to eq(before)
+      expect((learning + [ mastered ]).map { |s| s.reload.attributes }).to eq(before)
     end
 
     it "習得済みの列でも、並び順を詰め、残ったスキルの習得日は変えない" do
@@ -109,8 +109,8 @@ RSpec.describe "DELETE /api/v1/skills/:id", type: :request do
 
       delete "/api/v1/skills/#{mastered[0].id}"
 
-      expect(column(:mastered)).to eq([["M2", 0], ["M3", 1]])
-      expect(Skill.where(status: :mastered).order(:position).pluck(:acquired_on)).to eq([Date.new(2026, 9, 2), Date.new(2026, 9, 3)])
+      expect(column(:mastered)).to eq([ [ "M2", 0 ], [ "M3", 1 ] ])
+      expect(Skill.where(status: :mastered).order(:position).pluck(:acquired_on)).to eq([ Date.new(2026, 9, 2), Date.new(2026, 9, 3) ])
     end
 
     it "追加すると、詰めたあとの末尾につく" do
@@ -118,7 +118,7 @@ RSpec.describe "DELETE /api/v1/skills/:id", type: :request do
 
       post "/api/v1/skills", params: { name: "E" }, as: :json
 
-      expect(column(:unlearned)).to eq([["A", 0], ["C", 1], ["D", 2], ["E", 3]])
+      expect(column(:unlearned)).to eq([ [ "A", 0 ], [ "C", 1 ], [ "D", 2 ], [ "E", 3 ] ])
     end
   end
 
@@ -140,7 +140,7 @@ RSpec.describe "DELETE /api/v1/skills/:id", type: :request do
       expect { delete "/api/v1/skills/#{skill.id + 1000}" }.not_to change(Skill, :count)
 
       expect(response).to have_http_status(:not_found)
-      expect(json["errors"]["base"]).to eq(["指定されたスキルが見つかりません。"])
+      expect(json["errors"]["base"]).to eq([ "指定されたスキルが見つかりません。" ])
     end
 
     it "同じスキルをもう一度削除すると、404" do

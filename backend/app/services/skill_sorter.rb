@@ -58,7 +58,7 @@ class SkillSorter
 
     # 優先度(高 = 0、中 = 1、低 = 2)の順。同じ優先度は、いまの順番(index)で決める
     @skills = current.each_with_index
-                     .sort_by { |skill, index| [Skill.priorities.fetch(skill.priority), index] }
+                     .sort_by { |skill, index| [ Skill.priorities.fetch(skill.priority), index ] }
                      .map(&:first)
 
     @skills.each_with_index do |skill, new_position|

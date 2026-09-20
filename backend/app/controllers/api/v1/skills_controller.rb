@@ -60,7 +60,7 @@ module Api
         end
       rescue ActionController::ParameterMissing
         # 編集できる項目が1つも含まれていない(空のリクエスト、状態や習得日だけ、など)
-        render json: { errors: { base: [NO_EDITABLE_FIELDS_MESSAGE] } }, status: :bad_request
+        render json: { errors: { base: [ NO_EDITABLE_FIELDS_MESSAGE ] } }, status: :bad_request
       end
 
       # POST /api/v1/skills/sort
@@ -76,7 +76,7 @@ module Api
           render_errors(sorter)
         end
       rescue ActionController::ParameterMissing
-        render json: { errors: { base: [NO_SORT_STATUS_MESSAGE] } }, status: :bad_request
+        render json: { errors: { base: [ NO_SORT_STATUS_MESSAGE ] } }, status: :bad_request
       end
 
       # PATCH /api/v1/skills/:id/move
@@ -92,7 +92,7 @@ module Api
           render_errors(skill)
         end
       rescue ActionController::ParameterMissing
-        render json: { errors: { base: [NO_DESTINATION_MESSAGE] } }, status: :bad_request
+        render json: { errors: { base: [ NO_DESTINATION_MESSAGE ] } }, status: :bad_request
       end
 
       # DELETE /api/v1/skills/:id

@@ -17,6 +17,6 @@ class CreateSkills < ActiveRecord::Migration[8.1]
     end
 
     # ボードを「状態ごと・並び順」に取り出すためのインデックス
-    add_index :skills, [:status, :position]
+    add_index :skills, [ :status, :position ]
   end
 end

@@ -126,7 +126,7 @@ RSpec.describe Skill, type: :model do
       skill = build_skill(status: :mastered, acquired_on: nil)
 
       expect(skill).not_to be_valid
-      expect(skill.errors.full_messages).to eq(["習得日を入力してください"])
+      expect(skill.errors.full_messages).to eq([ "習得日を入力してください" ])
     end
 
     it "習得済みのスキルは、習得日があれば保存できる" do
@@ -138,7 +138,7 @@ RSpec.describe Skill, type: :model do
         skill = build_skill(status: status, acquired_on: Date.new(2026, 9, 1))
 
         expect(skill).not_to be_valid
-        expect(skill.errors.full_messages).to eq(["習得日は習得済みのスキルにだけ設定できます"])
+        expect(skill.errors.full_messages).to eq([ "習得日は習得済みのスキルにだけ設定できます" ])
       end
     end
 
@@ -187,7 +187,7 @@ RSpec.describe Skill, type: :model do
 
       Skill.renumber_positions(:unlearned)
 
-      expect(positions(:unlearned)).to eq([["A", 0], ["B", 1], ["C", 2]])
+      expect(positions(:unlearned)).to eq([ [ "A", 0 ], [ "B", 1 ], [ "C", 2 ] ])
     end
 
     it "並び順が同じスキルは、id の順に並べる" do
@@ -196,7 +196,7 @@ RSpec.describe Skill, type: :model do
 
       Skill.renumber_positions(:learning)
 
-      expect(positions(:learning)).to eq([["先", 0], ["後", 1]])
+      expect(positions(:learning)).to eq([ [ "先", 0 ], [ "後", 1 ] ])
     end
 
     it "指定した状態だけを振り直す(ほかの状態は、そのまま)" do
@@ -205,8 +205,8 @@ RSpec.describe Skill, type: :model do
 
       Skill.renumber_positions(:unlearned)
 
-      expect(positions(:unlearned)).to eq([["未習得", 0]])
-      expect(positions(:learning)).to eq([["習得中", 4]])
+      expect(positions(:unlearned)).to eq([ [ "未習得", 0 ] ])
+      expect(positions(:learning)).to eq([ [ "習得中", 4 ] ])
     end
 
     it "すでに連番なら、何も変えない(更新日時も変わらない)" do
@@ -266,7 +266,7 @@ RSpec.describe Skill, type: :model do
         connection.select_rows("SELECT status, priority FROM skills WHERE id = #{saved.id.to_i}").first
       end
 
-      expect(raw).to eq([2, 2])
+      expect(raw).to eq([ 2, 2 ])
     end
 
     it "状態ごと・並び順で取り出せる" do
@@ -284,7 +284,7 @@ RSpec.describe Skill, type: :model do
       Skill.create!(name: "未習得A", status: :unlearned, position: 0)
       Skill.create!(name: "習得中A", status: :learning, position: 0)
 
-      expect(Skill.unlearned.pluck(:name)).to eq(["未習得A"])
+      expect(Skill.unlearned.pluck(:name)).to eq([ "未習得A" ])
       expect(Skill.mastered).to be_empty
     end
   end
