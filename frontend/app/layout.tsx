@@ -9,7 +9,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        <header className="topbar">
+          <h1>skill-map</h1>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }
