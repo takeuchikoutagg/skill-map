@@ -73,6 +73,9 @@ Rails(API モード)と MySQL は、Docker で動かします。パソコンに 
 | スキルを移動する | `curl -X PATCH http://localhost:3001/api/v1/skills/1/move -H "Content-Type: application/json" -d '{"status":"mastered","position":0}'`(習得済みへ移すと、習得日が記録されます) |
 | 優先度順に並べ替える | `curl -X POST http://localhost:3001/api/v1/skills/sort -H "Content-Type: application/json" -d '{"status":"unlearned"}'`(`unlearned` か `learning`。高 → 中 → 低に並びます) |
 | 書き方を検査する(rubocop) | `docker compose exec web bin/rubocop`(`0 offenses` = 指摘なし。見た目だけの指摘は、`-a` を付けると自動で直ります) |
+| セキュリティを検査する(brakeman) | `docker compose exec web bin/brakeman --no-pager`(`No warnings found` = 警告なし。危険な書き方(SQL インジェクションなど)を見つけます) |
+| 使っている gem の脆弱性を検査する | `docker compose exec web bin/bundler-audit`(`No vulnerabilities found` = 問題なし) |
+| **まとめて検査する**(コミット・Pull Request の前に) | `docker compose exec web bin/ci`(rubocop、gem の脆弱性、brakeman、RSpec を、順に実行。すべて成功すれば `Continuous Integration passed`) |
 | Rails を再起動する | `docker compose restart web`(`app/` の下に新しいフォルダを作ったときなど。読み込まれないときに使います) |
 | MySQL の中を見る | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'` |
 
