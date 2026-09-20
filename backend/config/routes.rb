@@ -8,7 +8,7 @@ Rails.application.routes.draw do
   # API(docs/02-機能要件.md の API 一覧)。URL は /api/v1/... になる
   namespace :api do
     namespace :v1 do
-      resources :skills, only: [:index]   # GET /api/v1/skills
+      resources :skills, only: [:index, :create]   # GET /api/v1/skills、POST /api/v1/skills
     end
   end
 

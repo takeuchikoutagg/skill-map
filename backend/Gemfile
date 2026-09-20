@@ -22,6 +22,13 @@ gem "thruster", require: false
 # Use Rack CORS for handling Cross-Origin Resource Sharing (CORS), making cross-origin Ajax possible
 gem "rack-cors", "~> 3.0"
 
+# エラーメッセージなどを日本語にする(Rails 標準の文言の日本語訳)
+gem "rails-i18n", "~> 8.0"
+
+# json 3 系は、Rails 8.1(ActiveSupport)がまだ対応しておらず、送られてきた JSON を読めない
+# ("wrong number of arguments (given 2, expected 1)")。対応するまで 2 系に固定する。
+gem "json", "~> 2.21"
+
 group :development, :test do
   # テスト(RSpec)
   gem "rspec-rails", "~> 8.0"

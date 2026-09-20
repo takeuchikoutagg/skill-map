@@ -1,0 +1,25 @@
+# 日本語の文言。Rails 標準のエラーメッセージの訳は、rails-i18n が持っている。
+# ここでは、このアプリのモデルと項目の名前(エラーメッセージの先頭に付く名前)を決める。
+#   例: 「スキル名を入力してください」「スキル名は100文字以内で入力してください」
+ja:
+  activerecord:
+    models:
+      skill: スキル
+    attributes:
+      skill:
+        name: スキル名
+        note: ポイント・考察
+        status: 状態
+        priority: 優先度
+        due_date: 期限
+        acquired_on: 習得日
+        position: 並び順
+    errors:
+      models:
+        skill:
+          attributes:
+            # API を使う側に、何を送ればよいかが分かる文言にする
+            status:
+              inclusion: は unlearned・learning・mastered のいずれかにしてください
+            priority:
+              inclusion: は high・medium・low のいずれかにしてください

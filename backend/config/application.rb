@@ -35,6 +35,9 @@ module Backend
     #
     # 習得日はサーバーの日付で記録するため、日本の日付になるようにする(docs/02-機能要件.md の F-06)
     config.time_zone = "Tokyo"
+
+    # エラーメッセージなどの文言は、日本語にする(rails-i18n が標準の文言の日本語訳を持っている)
+    config.i18n.default_locale = :ja
     # config.eager_load_paths << Rails.root.join("extras")
 
     # Only loads a smaller set of middleware suitable for API only apps.

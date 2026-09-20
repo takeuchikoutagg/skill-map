@@ -12,6 +12,45 @@ module Api
 
         render json: skills.as_json(only: RESPONSE_FIELDS)
       end
+
+      # POST /api/v1/skills
+      # スキルを追加する。追加したスキルは、指定した状態の列の末尾に置く。
+      # 習得済みの列には、直接追加できない(習得済みにするには、追加したあとに移動する)。
+      def create
+        skill = Skill.new(skill_params)
+
+        if skill.mastered?
+          skill.errors.add(:base, "習得済みの列には、スキルを直接追加できません。未習得か習得中に追加してから、移動してください。")
+          return render_errors(skill)
+        end
+
+        # 並び順の決定と保存は、まとめて行う(途中で失敗したら、どちらもなかったことにする)
+        saved = Skill.transaction do
+          skill.position = Skill.statuses.key?(skill.status) ? Skill.next_position(skill.status) : 0
+          skill.save
+        end
+
+        if saved
+          render json: skill.as_json(only: RESPONSE_FIELDS), status: :created
+        else
+          render_errors(skill)
+        end
+      end
+
+      private
+
+      # 受け取る項目。習得日(acquired_on)と並び順(position)は、サーバーが決めるので、受け取らない
+      def skill_params
+        params.expect(skill: %i[name note status priority due_date])
+      end
+
+      # 入力が正しくないときの返事(422)。項目ごとに、日本語のメッセージを返す
+      #   { "errors": { "name": ["スキル名を入力してください"] } }
+      def render_errors(skill)
+        errors = skill.errors.attribute_names.index_with { |attribute| skill.errors.full_messages_for(attribute) }
+
+        render json: { errors: errors }, status: :unprocessable_content
+      end
     end
   end
 end

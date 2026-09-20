@@ -107,7 +107,7 @@ GEM
       prism (>= 1.3.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
-    json (3.0.2)
+    json (2.21.2)
     language_server-protocol (3.17.0.6)
     lint_roller (1.1.0)
     logger (1.7.0)
@@ -197,6 +197,9 @@ GEM
     rails-html-sanitizer (1.7.1)
       loofah (~> 2.25, >= 2.25.2)
       nokogiri (>= 1.15.7, != 1.16.7, != 1.16.6, != 1.16.5, != 1.16.4, != 1.16.3, != 1.16.2, != 1.16.1, != 1.16.0.rc1, != 1.16.0)
+    rails-i18n (8.1.0)
+      i18n (>= 0.7, < 2)
+      railties (>= 8.0.0, < 9)
     railties (8.1.3.1)
       actionpack (= 8.1.3.1)
       activesupport (= 8.1.3.1)
@@ -305,10 +308,12 @@ DEPENDENCIES
   brakeman
   bundler-audit
   debug
+  json (~> 2.21)
   mysql2 (~> 0.5)
   puma (>= 5.0)
   rack-cors (~> 3.0)
   rails (~> 8.1.3, >= 8.1.3.1)
+  rails-i18n (~> 8.0)
   rspec-rails (~> 8.0)
   rubocop-rails-omakase
   thruster
