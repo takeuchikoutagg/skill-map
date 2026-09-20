@@ -1,0 +1,45 @@
+# 開発用の構成(Rails API + MySQL)。本番の構成は docs/06-技術スタック.md を参照
+name: skill-map
+
+services:
+  db:
+    image: mysql:8.4
+    # 日本語を保存するため、文字コードは utf8mb4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-password}
+    volumes:
+      - db-data:/var/lib/mysql
+    # ホストにはポートを公開しない(確認は `docker compose exec db mysql ...` で行う)
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  web:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    # 古い pid ファイルを消し、DB を用意(なければ作成)してから起動する
+    command: bash -c "rm -f tmp/pids/server.pid && bin/rails db:prepare && bin/rails server -b 0.0.0.0 -p 3000"
+    ports:
+      # ホストの 3001 番で公開する(自分のパソコンからだけ接続できる)
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./backend:/rails
+    # RAILS_ENV は指定しない(サーバーは既定の development、RSpec は test で動く)
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data:
