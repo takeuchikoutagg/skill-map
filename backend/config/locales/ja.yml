@@ -18,6 +18,8 @@ ja:
       models:
         skill:
           attributes:
+            acquired_on:
+              only_for_mastered: は習得済みのスキルにだけ設定できます
             # API を使う側に、何を送ればよいかが分かる文言にする
             status:
               inclusion: は unlearned・learning・mastered のいずれかにしてください

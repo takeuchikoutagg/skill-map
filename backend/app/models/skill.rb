@@ -16,6 +16,7 @@ class Skill < ApplicationRecord
   validates :position, presence: true,
                        numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :due_date_must_be_a_date
+  validate :acquired_on_matches_status
 
   # 同じ状態の列の、末尾に置くときの並び順(列が空なら 0)
   def self.next_position(status)
@@ -31,6 +32,17 @@ class Skill < ApplicationRecord
   end
 
   private
+
+  # 習得日のルール(docs/05-ER図.md の「守るべきルール」)
+  #   習得済みのスキルは、習得日が入っている。習得済みでないスキルは、習得日が空。
+  # 習得日は、スキルを移動するときに、サーバーが自動で記録・消去する(SkillMover)。
+  def acquired_on_matches_status
+    if mastered?
+      errors.add(:acquired_on, :blank) if acquired_on.blank?
+    elsif acquired_on.present?
+      errors.add(:acquired_on, :only_for_mastered)
+    end
+  end
 
   # 期限に、日付として読めない値("abc" や存在しない日付)が送られたときは、黙って空にせず、エラーにする。
   # (Rails は、日付にできない値を、エラーを出さずに nil にしてしまうため)

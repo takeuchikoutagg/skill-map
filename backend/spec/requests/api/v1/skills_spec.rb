@@ -55,7 +55,7 @@ RSpec.describe "GET /api/v1/skills", type: :request do
   end
 
   it "状態(未習得 → 習得中 → 習得済み)、同じ状態の中では並び順で返す" do
-    Skill.create!(name: "習得済みA", status: :mastered, position: 0)
+    Skill.create!(name: "習得済みA", status: :mastered, acquired_on: Date.new(2026, 9, 1), position: 0)
     Skill.create!(name: "未習得B", status: :unlearned, position: 1)
     Skill.create!(name: "習得中A", status: :learning, position: 0)
     Skill.create!(name: "未習得A", status: :unlearned, position: 0)
