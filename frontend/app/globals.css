@@ -1,0 +1,12 @@
+/* 全体の見た目。F2 で、プロトタイプ(prototype/style.css)の見た目に置き換える */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px 20px;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
