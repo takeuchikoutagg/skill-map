@@ -28,7 +28,17 @@ Trello を参考にした、個人用のスキル管理アプリ。「未習得 
 
 いずれも、ポートが競合している場合は、既存のプロセスを自動で停止してから起動する。
 
-> `start.sh` は、実装(Phase 2、Phase 3)で作成する。作成するまでは、上のコマンドは使えない。
+> バックエンドの `start.sh` は作成済み。フロントエンドの `start.sh` は、フロントエンドの実装(Phase 3)で作成する。作成するまでは、フロントエンドのコマンドは使えない。
+
+### バックエンドの操作(起動後)
+
+バックエンドを `start.sh` で起動したあとの操作は、次のコマンドで行う(リポジトリ直下で実行する)。サーバーの起動ではないので、`docker compose exec` を直接使ってよい。
+
+- テスト(RSpec): `docker compose exec web bundle exec rspec`
+- マイグレーション: `docker compose exec web bin/rails db:migrate`
+- Rails のコマンド: `docker compose exec web bin/rails ...`
+- MySQL の確認: `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'`
+- 停止: `docker compose down`(DB のデータは残る。`-v` を付けると消えるので、付けない)
 
 ### サーバー起動時のポートに関するルール(必須)
 

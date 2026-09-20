@@ -51,13 +51,34 @@
 - **注意**: ドラッグ&ドロップは、パソコンのブラウザ向けです(スマートフォンなどのタッチ操作には未対応)
 - **人に渡すとき**: `prototype/` フォルダごと渡してください(4つのファイルが必要です)
 
+## 開発環境(バックエンド)
+
+Rails(API モード)と MySQL は、Docker で動かします。パソコンに Ruby や MySQL を入れる必要はありません。
+
+**前提**: Docker Desktop が起動していること
+
+| やりたいこと | コマンド(リポジトリ直下で実行) |
+|---|---|
+| 起動する | `cd backend && ./start.sh`(画面に Rails のログが出ます。止めるときは Ctrl + C) |
+| 裏で起動する | `cd backend && ./start.sh -d` |
+| 動作を確認する | `curl http://localhost:3001/up`(200 が返れば OK) |
+| 停止する | `docker compose down`(DB のデータは残ります) |
+| テストを実行する | `docker compose exec web bundle exec rspec` |
+| テーブルを作る・更新する | `docker compose exec web bin/rails db:migrate` |
+| MySQL の中を見る | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'` |
+
+- **ポート**: API は `http://localhost:3001` で動きます(自分のパソコンからだけ接続できます)。
+- **`start.sh` の動き**: ポート 3001 を別のものが使っていると、それを止めてから、同じ 3001 番で起動します(別のポートには逃げません)。止めるのは、このプロジェクトのコンテナ、3001 番を使っている他の Docker コンテナ、Docker 以外のプロセスです。Docker Desktop 本体は止めません。
+- **設定**: 既定の値で動きます。変えたいときは、`.env.example` を `.env` にコピーして書き換えます(`.env` は Git に入りません)。
+- **DB のデータを消すとき**: `docker compose down -v` で、DB のデータも消えます。普段は付けないでください。
+
 ## 開発の進め方
 
 | 段階 | 内容 | 状況 |
 |---|---|---|
 | Phase 0 | リポジトリの準備 | 完了 |
 | Phase 1 | ドキュメントの作成 | 完了 |
-| Phase 2 | バックエンド(Rails API、MySQL、テスト) | 未着手 |
+| Phase 2 | バックエンド(Rails API、MySQL、テスト) | 進行中(環境の準備、`skills` テーブルとモデルは完了。API はこれから) |
 | Phase 3 | フロントエンド(Next.js) | 未着手 |
 | Phase 4 | AWS(EC2 + RDS)へのデプロイ | 未着手 |
 
