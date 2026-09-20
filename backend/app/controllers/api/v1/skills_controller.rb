@@ -57,6 +57,20 @@ module Api
         render json: { errors: { base: [NO_EDITABLE_FIELDS_MESSAGE] } }, status: :bad_request
       end
 
+      # DELETE /api/v1/skills/:id
+      # スキルを削除し、同じ状態の列の並び順を詰める(0 から連番に振り直す)。
+      # 削除と振り直しは、まとめて行う(途中で失敗したら、削除もなかったことにする)。
+      def destroy
+        skill = Skill.find(params[:id])
+
+        Skill.transaction do
+          skill.destroy!
+          Skill.renumber_positions(skill.status)
+        end
+
+        head :no_content
+      end
+
       private
 
       # 追加のときに受け取る項目。習得日(acquired_on)と並び順(position)は、サーバーが決めるので、受け取らない

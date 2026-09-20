@@ -22,6 +22,14 @@ class Skill < ApplicationRecord
     (where(status: status).maximum(:position) || -1) + 1
   end
 
+  # 同じ状態の列の並び順を、0 から連番に振り直す(歯抜けを詰める)。
+  # いまの並び順(同じなら id)の順番は、変えない。削除のあとなどに使う。
+  def self.renumber_positions(status)
+    where(status: status).order(:position, :id).each_with_index do |skill, index|
+      skill.update_columns(position: index) if skill.position != index
+    end
+  end
+
   private
 
   # 期限に、日付として読めない値("abc" や存在しない日付)が送られたときは、黙って空にせず、エラーにする。
