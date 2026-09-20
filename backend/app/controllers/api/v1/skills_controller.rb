@@ -8,6 +8,9 @@ module Api
       NO_EDITABLE_FIELDS_MESSAGE =
         "編集できる項目がありません。スキル名(name)、ポイント・考察(note)、優先度(priority)、期限(due_date)のいずれかを送ってください。".freeze
 
+      # 移動のリクエストに、移動先(状態と位置)が1つもないときの、エラーメッセージ
+      NO_DESTINATION_MESSAGE = "移動先が指定されていません。移動先の状態(status)と位置(position)を送ってください。".freeze
+
       # GET /api/v1/skills
       # すべてのスキルを、状態(未習得 → 習得中 → 習得済み)、並び順の順に返す。
       # 画面側で、状態ごとに列へ分ける。
@@ -57,6 +60,22 @@ module Api
         render json: { errors: { base: [NO_EDITABLE_FIELDS_MESSAGE] } }, status: :bad_request
       end
 
+      # PATCH /api/v1/skills/:id/move
+      # スキルを、指定した状態(列)の、指定した位置に移動する(列間の移動と、列内の並び替え)。
+      # 並び順の振り直しと、習得日の記録・消去は、SkillMover が行う。
+      def move
+        skill = Skill.find(params[:id])
+        destination = move_params
+
+        if SkillMover.new(skill, status: destination[:status], position: destination[:position]).call
+          render json: skill.as_json(only: RESPONSE_FIELDS)
+        else
+          render_errors(skill)
+        end
+      rescue ActionController::ParameterMissing
+        render json: { errors: { base: [NO_DESTINATION_MESSAGE] } }, status: :bad_request
+      end
+
       # DELETE /api/v1/skills/:id
       # スキルを削除し、同じ状態の列の並び順を詰める(0 から連番に振り直す)。
       # 削除と振り直しは、まとめて行う(途中で失敗したら、削除もなかったことにする)。
@@ -81,6 +100,11 @@ module Api
       # 編集のときに受け取る項目。状態(status)は、追加のときと違い、受け取らない
       def update_params
         params.expect(skill: %i[name note priority due_date])
+      end
+
+      # 移動のときに受け取る項目。移動先の状態(status)と、その列の中での位置(position)だけ
+      def move_params
+        params.expect(skill: %i[status position])
       end
 
       # 入力が正しくないときの返事(422)。項目ごとに、日本語のメッセージを返す

@@ -121,6 +121,32 @@ RSpec.describe Skill, type: :model do
     end
   end
 
+  describe "習得日(acquired_on)のルール" do
+    it "習得済みのスキルは、習得日が必要" do
+      skill = build_skill(status: :mastered, acquired_on: nil)
+
+      expect(skill).not_to be_valid
+      expect(skill.errors.full_messages).to eq(["習得日を入力してください"])
+    end
+
+    it "習得済みのスキルは、習得日があれば保存できる" do
+      expect(build_skill(status: :mastered, acquired_on: Date.new(2026, 9, 1))).to be_valid
+    end
+
+    it "習得済みでないスキルは、習得日を持てない(未習得も、習得中も)" do
+      %i[unlearned learning].each do |status|
+        skill = build_skill(status: status, acquired_on: Date.new(2026, 9, 1))
+
+        expect(skill).not_to be_valid
+        expect(skill.errors.full_messages).to eq(["習得日は習得済みのスキルにだけ設定できます"])
+      end
+    end
+
+    it "習得済みでないスキルは、習得日が空なら保存できる" do
+      expect(build_skill(status: :learning, acquired_on: nil)).to be_valid
+    end
+  end
+
   describe "エラーメッセージは日本語" do
     it "項目名も、日本語で出る" do
       skill = build_skill(name: "", note: "あ" * 5001)
@@ -233,7 +259,7 @@ RSpec.describe Skill, type: :model do
     end
 
     it "状態と優先度は、DB には数字で保存される" do
-      saved = Skill.create!(name: "x", status: :mastered, priority: :low, position: 0)
+      saved = Skill.create!(name: "x", status: :mastered, priority: :low, acquired_on: Date.new(2026, 9, 1), position: 0)
 
       # Rails を通さず、SQL で直接、DB の値を読む(Rails 経由だと名前に変換されてしまうため)
       raw = Skill.with_connection do |connection|
@@ -244,7 +270,7 @@ RSpec.describe Skill, type: :model do
     end
 
     it "状態ごと・並び順で取り出せる" do
-      Skill.create!(name: "習得済みA", status: :mastered, position: 0)
+      Skill.create!(name: "習得済みA", status: :mastered, acquired_on: Date.new(2026, 9, 1), position: 0)
       Skill.create!(name: "未習得B", status: :unlearned, position: 1)
       Skill.create!(name: "未習得A", status: :unlearned, position: 0)
       Skill.create!(name: "習得中A", status: :learning, position: 0)

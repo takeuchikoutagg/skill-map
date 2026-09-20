@@ -70,6 +70,8 @@ Rails(API モード)と MySQL は、Docker で動かします。パソコンに 
 | スキルを追加する | `curl -X POST http://localhost:3001/api/v1/skills -H "Content-Type: application/json" -d '{"name":"レジ締め","status":"learning"}'` |
 | スキルを編集する | `curl -X PATCH http://localhost:3001/api/v1/skills/1 -H "Content-Type: application/json" -d '{"priority":"high"}'`(`1` は、編集するスキルの id) |
 | スキルを削除する | `curl -X DELETE http://localhost:3001/api/v1/skills/1`(`1` は、削除するスキルの id。同じ列の並び順は詰まります) |
+| スキルを移動する | `curl -X PATCH http://localhost:3001/api/v1/skills/1/move -H "Content-Type: application/json" -d '{"status":"mastered","position":0}'`(習得済みへ移すと、習得日が記録されます) |
+| Rails を再起動する | `docker compose restart web`(`app/` の下に新しいフォルダを作ったときなど。読み込まれないときに使います) |
 | MySQL の中を見る | `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'` |
 
 - **ポート**: API は `http://localhost:3001` で動きます(自分のパソコンからだけ接続できます)。

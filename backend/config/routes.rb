@@ -9,7 +9,11 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       # GET /api/v1/skills、POST /api/v1/skills、PATCH /api/v1/skills/:id、DELETE /api/v1/skills/:id
-      resources :skills, only: [:index, :create, :update, :destroy]
+      resources :skills, only: [:index, :create, :update, :destroy] do
+        member do
+          patch :move   # PATCH /api/v1/skills/:id/move
+        end
+      end
     end
   end
 
