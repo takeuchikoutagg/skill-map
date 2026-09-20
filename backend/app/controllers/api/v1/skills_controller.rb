@@ -17,7 +17,7 @@ module Api
       # スキルを追加する。追加したスキルは、指定した状態の列の末尾に置く。
       # 習得済みの列には、直接追加できない(習得済みにするには、追加したあとに移動する)。
       def create
-        skill = Skill.new(skill_params)
+        skill = Skill.new(create_params)
 
         if skill.mastered?
           skill.errors.add(:base, "習得済みの列には、スキルを直接追加できません。未習得か習得中に追加してから、移動してください。")
@@ -37,11 +37,29 @@ module Api
         end
       end
 
+      # PATCH /api/v1/skills/:id
+      # スキルを編集する。送られた項目だけを更新する(送られなかった項目は、変えない)。
+      # 習得日・状態・並び順は、ここでは変えられない(状態と並び順は、移動の API で変える)。
+      def update
+        skill = Skill.find(params[:id])
+
+        if skill.update(update_params)
+          render json: skill.as_json(only: RESPONSE_FIELDS)
+        else
+          render_errors(skill)
+        end
+      end
+
       private
 
-      # 受け取る項目。習得日(acquired_on)と並び順(position)は、サーバーが決めるので、受け取らない
-      def skill_params
+      # 追加のときに受け取る項目。習得日(acquired_on)と並び順(position)は、サーバーが決めるので、受け取らない
+      def create_params
         params.expect(skill: %i[name note status priority due_date])
+      end
+
+      # 編集のときに受け取る項目。状態(status)は、追加のときと違い、受け取らない
+      def update_params
+        params.expect(skill: %i[name note priority due_date])
       end
 
       # 入力が正しくないときの返事(422)。項目ごとに、日本語のメッセージを返す
