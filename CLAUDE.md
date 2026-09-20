@@ -36,7 +36,10 @@ Trello を参考にした、個人用のスキル管理アプリ。「未習得 
 
 - テスト(RSpec): `docker compose exec web bundle exec rspec`
 - マイグレーション: `docker compose exec web bin/rails db:migrate`
-- 書き方の検査(rubocop): `docker compose exec web bin/rubocop`。指摘が 0 件であることを確認してからコミットする。見た目だけの指摘は `-a` で自動で直せる(直したあとは、テストを実行して確認する)
+- **まとめて検査: `docker compose exec web bin/ci`**。コミット・Pull Request の前に実行し、すべて成功する(`Continuous Integration passed`)ことを確認する。中身は、rubocop、gem の脆弱性検査(bundler-audit)、brakeman、RSpec の4つ(`backend/config/ci.rb`)
+- 書き方の検査(rubocop): `docker compose exec web bin/rubocop`。指摘が 0 件であることを確認する。見た目だけの指摘は `-a` で自動で直せる(直したあとは、テストを実行して確認する)
+- セキュリティの検査(brakeman): `docker compose exec web bin/brakeman --no-pager`。警告が 0 件であることを確認する。指摘が出たら、内容を確認して直す(問題がないと判断した場合だけ、理由を記録して除外する)
+- gem の脆弱性検査: `docker compose exec web bin/bundler-audit`
 - Rails のコマンド: `docker compose exec web bin/rails ...`
 - MySQL の確認: `docker compose exec db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" skill_map_development'`
 - 停止: `docker compose down`(DB のデータは残る。`-v` を付けると消えるので、付けない)
