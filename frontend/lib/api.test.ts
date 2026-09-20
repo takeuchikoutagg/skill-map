@@ -1,5 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, fetchSkills, parseApiError, REQUEST_TIMEOUT_MS, serverApiUrl, toSkill, type ApiSkill } from "@/lib/api";
+import {
+  ApiError,
+  browserApiUrl,
+  createSkill,
+  fetchSkills,
+  parseApiError,
+  REQUEST_TIMEOUT_MS,
+  serverApiUrl,
+  toSkill,
+  type ApiSkill,
+} from "@/lib/api";
 import { sampleSkills, toApiSkill } from "@/lib/fixtures";
 
 // API の返事を、模擬する(本物の通信はしない)
@@ -179,5 +189,91 @@ describe("parseApiError(エラーの返事の読み取り)", () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect(error.status).toBe(500);
+  });
+});
+
+describe("browserApiUrl(ブラウザから API を呼ぶときの場所)", () => {
+  it("環境変数がなければ、開発中のバックエンド(localhost:3001)", () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+
+    expect(browserApiUrl()).toBe("http://localhost:3001");
+  });
+
+  it("環境変数 NEXT_PUBLIC_API_URL があれば、それを使う。末尾のスラッシュは取り除く", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://api.example.com/");
+
+    expect(browserApiUrl()).toBe("http://api.example.com");
+  });
+
+  it("空にすると、空のまま(本番で、同じオリジンから API を呼ぶ)", () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "");
+
+    expect(browserApiUrl()).toBe("");
+  });
+});
+
+describe("createSkill(スキルの追加)", () => {
+  const input = { name: "レジ締め", note: "メモ", priority: "high", dueDate: "2026-10-31" };
+  const created: ApiSkill = {
+    id: 9, name: "レジ締め", note: "メモ", status: "learning", priority: "high",
+    due_date: "2026-10-31", acquired_on: null, position: 2,
+  };
+
+  it("追加先の状態と入力を、POST で送り、作られたスキルを画面の形で返す", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(created, 201));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const skill = await createSkill("learning", input, "http://api.test");
+
+    expect(skill).toEqual({
+      id: 9, name: "レジ締め", note: "メモ", status: "learning", priority: "high",
+      dueDate: "2026-10-31", acquiredOn: null, position: 2,
+    });
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://api.test/api/v1/skills");
+    expect(options.method).toBe("POST");
+    expect(options.headers).toMatchObject({ "Content-Type": "application/json" });
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    // 項目名は、API の書き方(due_date)。画面の書き方(dueDate)ではない
+    expect(JSON.parse(options.body as string)).toEqual({
+      name: "レジ締め", note: "メモ", status: "learning", priority: "high", due_date: "2026-10-31",
+    });
+  });
+
+  it("空のポイント・考察と期限は、null として送る", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ...created, note: null, due_date: null }, 201));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createSkill("unlearned", { ...input, note: "", dueDate: "" }, "http://api.test");
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ note: null, due_date: null, status: "unlearned" });
+  });
+
+  it("場所を指定しなければ、環境変数 NEXT_PUBLIC_API_URL を使う", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://from-env.test");
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(created, 201));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await createSkill("learning", input);
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://from-env.test/api/v1/skills");
+  });
+
+  it("入力が正しくない(422)ときは、項目ごとのメッセージつきの ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { name: ["スキル名を入力してください"] } }, 422)));
+
+    const error = await createSkill("unlearned", input, "http://api.test").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 422, fieldErrors: { name: ["スキル名を入力してください"] } });
+  });
+
+  it("接続できなかった・時間切れのときは、もとの例外がそのまま出る", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    await expect(createSkill("unlearned", input, "http://api.test")).rejects.toThrow("fetch failed");
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
+    await expect(createSkill("unlearned", input, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
   });
 });
