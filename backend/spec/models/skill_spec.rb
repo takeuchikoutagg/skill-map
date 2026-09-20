@@ -149,6 +149,54 @@ RSpec.describe Skill, type: :model do
     end
   end
 
+  describe ".renumber_positions(並び順の振り直し)" do
+    def positions(status)
+      Skill.where(status: status).order(:position, :id).pluck(:name, :position)
+    end
+
+    it "歯抜けを詰めて、0 からの連番にする(順番は変えない)" do
+      Skill.create!(name: "A", status: :unlearned, position: 0)
+      Skill.create!(name: "B", status: :unlearned, position: 3)
+      Skill.create!(name: "C", status: :unlearned, position: 9)
+
+      Skill.renumber_positions(:unlearned)
+
+      expect(positions(:unlearned)).to eq([["A", 0], ["B", 1], ["C", 2]])
+    end
+
+    it "並び順が同じスキルは、id の順に並べる" do
+      Skill.create!(name: "先", status: :learning, position: 5)
+      Skill.create!(name: "後", status: :learning, position: 5)
+
+      Skill.renumber_positions(:learning)
+
+      expect(positions(:learning)).to eq([["先", 0], ["後", 1]])
+    end
+
+    it "指定した状態だけを振り直す(ほかの状態は、そのまま)" do
+      Skill.create!(name: "未習得", status: :unlearned, position: 4)
+      Skill.create!(name: "習得中", status: :learning, position: 4)
+
+      Skill.renumber_positions(:unlearned)
+
+      expect(positions(:unlearned)).to eq([["未習得", 0]])
+      expect(positions(:learning)).to eq([["習得中", 4]])
+    end
+
+    it "すでに連番なら、何も変えない(更新日時も変わらない)" do
+      a = Skill.create!(name: "A", status: :unlearned, position: 0)
+      before = a.reload.attributes
+
+      Skill.renumber_positions(:unlearned)
+
+      expect(a.reload.attributes).to eq(before)
+    end
+
+    it "スキルがない状態でも、エラーにならない" do
+      expect { Skill.renumber_positions(:mastered) }.not_to raise_error
+    end
+  end
+
   # ここから先は、実際に MySQL へ保存して、取り出せるかの確認
   describe "MySQL への保存と取り出し" do
     it "すべての項目を保存して、そのまま取り出せる" do
