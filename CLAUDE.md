@@ -28,7 +28,17 @@ Trello を参考にした、個人用のスキル管理アプリ。「未習得 
 
 いずれも、ポートが競合している場合は、既存のプロセスを自動で停止してから起動する。
 
-> バックエンドの `start.sh` は作成済み。フロントエンドの `start.sh` は、フロントエンドの実装(Phase 3)で作成する。作成するまでは、フロントエンドのコマンドは使えない。
+> バックエンドとフロントエンドの `start.sh` は、どちらも作成済み。
+
+### フロントエンドの操作
+
+フロントエンド(`frontend/`)は、パソコンの Node.js で動かす(Docker は使わない)。次のコマンドは、`frontend/` の中で実行する。
+
+- **まとめて検査: `npm run check`**(ESLint、型検査、テスト、本番用ビルド)。コミット・Pull Request の前に実行し、すべて成功することを確認する
+- テスト(Vitest): `npm run test`。書き方の検査: `npm run lint`。型検査: `npm run typecheck`
+- 開発サーバーの起動は、必ず `./start.sh` から行う(`npm run dev` を直接実行しない)。`package.json` の `dev` は、`next dev -p 3000 -H 127.0.0.1`(ポートを明示し、自分のパソコンからだけ接続できるようにしている)
+- ブラウザでは `http://localhost:3000` を使う(`127.0.0.1` では、バックエンドの CORS の許可に合わず、API を呼べない)
+- Next.js 16 の使い方で迷ったときは、付属の説明(`frontend/node_modules/next/dist/docs/`)を読む(以前の版と違う点がある)。`next.config.ts` の `agentRules: false` は、`next dev` が案内ファイルを自動で作るのを止める設定なので、外さない
 
 ### バックエンドの操作(起動後)
 
