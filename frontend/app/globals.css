@@ -158,7 +158,7 @@ button {
   border-radius: var(--radius);
   padding: 12px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-  cursor: pointer;
+  cursor: grab;
 }
 
 .card.dragging {
@@ -468,4 +468,24 @@ textarea:focus-visible {
   background: transparent;
   font-size: 12px;
   cursor: pointer;
+}
+
+/* ---------- ドラッグ&ドロップ ---------- */
+
+/* ドラッグ中に、カーソルについて動く、コピーのカード */
+.card.overlay {
+  cursor: grabbing;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+}
+
+/* キーボードで、カードにフォーカスしているとき(Space でつかめる) */
+.card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* 移動に失敗したときの、お知らせ */
+.notice.error {
+  background: var(--high-bg);
+  color: var(--high-text);
 }

@@ -1,4 +1,10 @@
-import { SkillCard } from "@/components/SkillCard";
+"use client";
+
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useMemo } from "react";
+import { SortableSkillCard } from "@/components/SortableSkillCard";
+import { columnDropId } from "@/lib/drag";
 import { STATUS_LABELS, type Skill, type Status } from "@/lib/types";
 
 const COMING_SOON = "この機能は、次のステップで作ります";
@@ -11,15 +17,30 @@ type Props = {
   onAdd: (status: Status) => void; // 「+ スキルを追加」が押されたとき
   onEdit: (skill: Skill) => void; // カードがクリックされたとき
   onDelete: (skill: Skill) => void; // カードの「削除」が押されたとき
+  highlighted: boolean; // ドラッグ中に、ここに置かれる列か(枠を強調する)
+  dragDisabled: boolean; // ドラッグできないか(移動の通信中)
 };
 
-export function Column({ status, skills, today, onAdd, onEdit, onDelete }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlighted, dragDisabled }: Props) {
+  // 列そのものを、ドロップ先にする(空の列にも、カードを置けるように)
+  const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const headingId = `list-${status}`;
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
 
+  // SortableContext に渡す、カードの id の並び。
+  // 中身が同じなら、同じ配列を渡し続ける(描画のたびに、新しい配列を作って渡してはいけない)。
+  // @dnd-kit は「渡された配列が、前と違うか」で、カードの位置を測り直す。測り直すと再描画が起きて、また新しい配列が渡されて、
+  // …と、際限なく繰り返し、「Maximum update depth exceeded」のエラーで画面が壊れることがある(習得中 → 習得済みのドラッグで実際に起きた)。
+  const idsKey = skills.map((skill) => skill.id).join(",");
+  const ids = useMemo(() => (idsKey === "" ? [] : idsKey.split(",").map(Number)), [idsKey]);
+
   return (
-    <section className={`list${status === "mastered" ? " list-done" : ""}`} aria-labelledby={headingId}>
+    <section
+      ref={setNodeRef}
+      className={`list${status === "mastered" ? " list-done" : ""}${highlighted ? " drop-target" : ""}`}
+      aria-labelledby={headingId}
+    >
       <div className="list-head">
         <h2 id={headingId}>{STATUS_LABELS[status]}</h2>
         <div className="list-tools">
@@ -36,9 +57,11 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete }: Props
 
       <div className="cards">
         {skills.length === 0 && <p className="empty">スキルがありません</p>}
-        {skills.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} today={today} onEdit={onEdit} onDelete={onDelete} />
-        ))}
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {skills.map((skill) => (
+            <SortableSkillCard key={skill.id} skill={skill} today={today} disabled={dragDisabled} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+        </SortableContext>
       </div>
 
       {editable && (
