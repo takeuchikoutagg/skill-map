@@ -54,6 +54,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const [deleting, setDeleting] = useState<Skill | null>(null); // 削除の確認ダイアログの、対象(閉じているときは null)
   const [notice, setNotice] = useState<Notice | null>(null); // 画面の上に出す、お知らせ
   const [busy, setBusy] = useState(false); // 移動・並べ替えの通信中か(通信中は、次のドラッグと並べ替えを受け付けない)
+  const [sortingStatus, setSortingStatus] = useState<Status | null>(null); // 並べ替えの通信中の列(ボタンの表示用)
   const sortingRef = useRef(false); // 並べ替えの通信中か(同じ瞬間の、2回目のクリックも防ぐため、画面の更新を待たずに読める形で持つ)
 
   // ドラッグ中の状態。ドラッグしていないときは、どちらも null
@@ -209,6 +210,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
     // 通信中・ドラッグ中は、ボタンが押せない(sortDisabled)。ここでは、同じ瞬間の2回目のクリックだけを、防ぐ(画面の更新を待たない)
     if (status === "mastered" || sortingRef.current) return;
     sortingRef.current = true;
+    setSortingStatus(status);
     setBusy(true);
     setNotice(null);
 
@@ -222,6 +224,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
       });
     } finally {
       sortingRef.current = false;
+      setSortingStatus(null);
       setBusy(false);
     }
   }
@@ -277,6 +280,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
               onDelete={setDeleting}
               onSort={handleSort}
               sortDisabled={busy || activeId !== null}
+              sorting={sortingStatus === status}
               highlighted={dropStatus === status}
               dragDisabled={busy}
             />

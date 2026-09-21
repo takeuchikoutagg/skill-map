@@ -1,3 +1,4 @@
+import { ReloadButton } from "@/components/ReloadButton";
 import { ApiError } from "@/lib/api";
 
 // 取得に失敗したときに、画面に出す文章を作る。
@@ -21,7 +22,8 @@ export function LoadError({ message }: { message: string }) {
     <main className="load-error" role="alert">
       <h2>スキルを取得できませんでした</h2>
       <p>{message}</p>
-      <p className="hint">バックエンド(API)が動いているかを確かめてから、ページを再読み込みしてください。</p>
+      <p className="hint">バックエンド(API)が動いているかを確かめてから、「再読み込み」を押してください。</p>
+      <ReloadButton />
     </main>
   );
 }
