@@ -43,7 +43,7 @@ describe("Board(スキルボードの表示)", () => {
     expect(within(column("習得済み")).queryByRole("button", { name: "+ スキルを追加" })).not.toBeInTheDocument();
   });
 
-  it("追加ボタンと削除ボタンは押せる。まだ使えない操作(優先度順)のボタンだけ、押せない状態で表示する", () => {
+  it("追加ボタンと削除ボタンは押せる。優先度順は、スキルが2件以上ある列だけ押せる", () => {
     render(<Board initialSkills={sampleSkills()} today={TODAY} />);
 
     for (const button of screen.getAllByRole("button", { name: "+ スキルを追加" })) {
@@ -54,8 +54,9 @@ describe("Board(スキルボードの表示)", () => {
     for (const button of deleteButtons) {
       expect(button).toBeEnabled();
     }
+    // サンプルは、未習得3件・習得中2件なので、どちらも押せる
     for (const button of screen.getAllByRole("button", { name: "優先度順" })) {
-      expect(button).toBeDisabled();
+      expect(button).toBeEnabled();
     }
   });
 

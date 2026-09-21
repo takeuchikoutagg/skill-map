@@ -195,3 +195,25 @@ export async function requestMove(
   }
   return toSkill((await response.json()) as ApiSkill);
 }
+
+// POST /api/v1/skills/sort: 未習得か習得中の列を、優先度の高い順(高 → 中 → 低)に並べ替えて、保存する。
+// 同じ優先度のスキルは、もとの順番を保つ。並び順の振り直しは、サーバーが行う。
+// 成功したら、並べ替えたあとの、その列のスキルを、並び順の順に返す(スキルがない列は、空の配列)。
+export async function requestSort(status: Status, baseUrl: string = browserApiUrl()): Promise<Skill[]> {
+  const response = await fetch(`${baseUrl}/api/v1/skills/sort`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ status }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+
+  const body: unknown = await response.json();
+  if (!Array.isArray(body)) {
+    throw new ApiError(response.status, { base: ["API の返事の形が正しくありません。"] });
+  }
+  return (body as ApiSkill[]).map(toSkill);
+}

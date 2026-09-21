@@ -149,6 +149,14 @@ export function sortByPriority(skills: readonly Skill[], status: SortableStatus)
   return skills.map((skill) => updated.get(skill.id) ?? skill);
 }
 
+/*
+ * 1つの列を、サーバーの返事で置き換える(優先度順の並べ替えのあと)。
+ * その列のスキルは、返ってきたものだけになる(並び順も、サーバーが決めた値)。ほかの列は、そのまま。
+ */
+export function replaceColumn(skills: readonly Skill[], status: Status, columnSkills: readonly Skill[]): Skill[] {
+  return [...skills.filter((skill) => skill.status !== status), ...columnSkills.filter((skill) => skill.status === status)];
+}
+
 // ---------- 編集と削除 ----------
 
 // スキル1件を、更新後のものに置き換える(編集のあと)。同じ id がなければ、何も変えない。

@@ -18,8 +18,8 @@ import { Column } from "@/components/Column";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SkillCard } from "@/components/SkillCard";
 import { SkillForm } from "@/components/SkillForm";
-import { ApiError, browserApiUrl, createSkill, deleteSkill, fetchSkills, requestMove, updateSkill } from "@/lib/api";
-import { groupByStatus, moveSkill, removeSkill, replaceSkill, type SkillInput } from "@/lib/board";
+import { ApiError, browserApiUrl, createSkill, deleteSkill, fetchSkills, requestMove, requestSort, updateSkill } from "@/lib/api";
+import { groupByStatus, moveSkill, removeSkill, replaceColumn, replaceSkill, type SkillInput } from "@/lib/board";
 import { detectCollisions } from "@/lib/collision";
 import {
   buildAnnouncements,
@@ -53,7 +53,8 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const [form, setForm] = useState<FormTarget | null>(null); // 追加・編集フォームの、開いている中身(閉じているときは null)
   const [deleting, setDeleting] = useState<Skill | null>(null); // 削除の確認ダイアログの、対象(閉じているときは null)
   const [notice, setNotice] = useState<Notice | null>(null); // 画面の上に出す、お知らせ
-  const [moving, setMoving] = useState(false); // 移動の通信中か(通信中は、次のドラッグを受け付けない)
+  const [busy, setBusy] = useState(false); // 移動・並べ替えの通信中か(通信中は、次のドラッグと並べ替えを受け付けない)
+  const sortingRef = useRef(false); // 並べ替えの通信中か(同じ瞬間の、2回目のクリックも防ぐため、画面の更新を待たずに読める形で持つ)
 
   // ドラッグ中の状態。ドラッグしていないときは、どちらも null
   const [activeId, setActiveId] = useState<number | null>(null); // つかんでいるカード
@@ -141,7 +142,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   // ---------- ドラッグ&ドロップ ----------
 
   function handleDragStart(event: DragStartEvent) {
-    if (moving) return; // 前の移動の通信中は、受け付けない
+    if (busy) return; // 前の移動・並べ替えの通信中は、受け付けない
     lastOverId.current = null;
     setActiveId(Number(event.active.id));
     updateDragItems(itemsFromSkills(skills)); // 見た目用の並びを、いまの一覧から作る
@@ -181,7 +182,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
 
     const previous = skills; // 失敗したときに、戻すための、元の一覧
     setSkills(moveSkill(previous, id, target.status, target.index, today));
-    setMoving(true);
+    setBusy(true);
     setNotice(null);
 
     try {
@@ -198,7 +199,30 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
         tone: "error",
       });
     } finally {
-      setMoving(false);
+      setBusy(false);
+    }
+  }
+
+  // 「優先度順」。API に頼んで、返ってきた「その列のスキル」で、列を置き換える(並び順は、サーバーが決めた値)。
+  // 失敗したら、画面はそのままで、エラーを出す。
+  async function handleSort(status: Status) {
+    // 通信中・ドラッグ中は、ボタンが押せない(sortDisabled)。ここでは、同じ瞬間の2回目のクリックだけを、防ぐ(画面の更新を待たない)
+    if (status === "mastered" || sortingRef.current) return;
+    sortingRef.current = true;
+    setBusy(true);
+    setNotice(null);
+
+    try {
+      const sorted = await requestSort(status);
+      setSkills((current) => replaceColumn(current, status, sorted));
+    } catch (error) {
+      setNotice({
+        text: `「${STATUS_LABELS[status]}」を優先度順に並べ替えできませんでした。${toFormErrors(error).general ?? ""}`,
+        tone: "error",
+      });
+    } finally {
+      sortingRef.current = false;
+      setBusy(false);
     }
   }
 
@@ -251,8 +275,10 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
               onAdd={(addStatus) => setForm({ kind: "add", status: addStatus })}
               onEdit={(skill) => setForm({ kind: "edit", skill })}
               onDelete={setDeleting}
+              onSort={handleSort}
+              sortDisabled={busy || activeId !== null}
               highlighted={dropStatus === status}
-              dragDisabled={moving}
+              dragDisabled={busy}
             />
           ))}
         </main>

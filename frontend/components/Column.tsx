@@ -7,8 +7,6 @@ import { SortableSkillCard } from "@/components/SortableSkillCard";
 import { columnDropId } from "@/lib/drag";
 import { STATUS_LABELS, type Skill, type Status } from "@/lib/types";
 
-const COMING_SOON = "この機能は、次のステップで作ります";
-
 // 列1つ(未習得・習得中・習得済みのどれか)。docs/03-画面一覧.md の「列の見出し」の表示項目どおり。
 type Props = {
   status: Status;
@@ -17,16 +15,19 @@ type Props = {
   onAdd: (status: Status) => void; // 「+ スキルを追加」が押されたとき
   onEdit: (skill: Skill) => void; // カードがクリックされたとき
   onDelete: (skill: Skill) => void; // カードの「削除」が押されたとき
+  onSort: (status: Status) => void; // 「優先度順」が押されたとき
+  sortDisabled: boolean; // 「優先度順」を押せないか(並べ替え・移動の通信中、ドラッグ中)
   highlighted: boolean; // ドラッグ中に、ここに置かれる列か(枠を強調する)
   dragDisabled: boolean; // ドラッグできないか(移動の通信中)
 };
 
-export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlighted, dragDisabled }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort, sortDisabled, highlighted, dragDisabled }: Props) {
   // 列そのものを、ドロップ先にする(空の列にも、カードを置けるように)
   const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const headingId = `list-${status}`;
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
+  const canSort = skills.length >= 2; // 1件以下なら、並べ替える意味がない
 
   // SortableContext に渡す、カードの id の並び。
   // 中身が同じなら、同じ配列を渡し続ける(描画のたびに、新しい配列を作って渡してはいけない)。
@@ -48,7 +49,13 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlig
             {skills.length}
           </span>
           {editable && (
-            <button type="button" className="sort-btn" disabled title={COMING_SOON}>
+            <button
+              type="button"
+              className="sort-btn"
+              disabled={sortDisabled || !canSort}
+              title={canSort ? "優先度の高い順(高 → 中 → 低)に並べ替えます" : "スキルが2件以上あると、並べ替えできます"}
+              onClick={() => onSort(status)}
+            >
               優先度順
             </button>
           )}
