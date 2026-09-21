@@ -285,3 +285,53 @@ describe("SkillForm(追加フォーム)", () => {
     });
   });
 });
+
+describe("SkillForm(編集フォーム)", () => {
+  const initial = { name: "請求書の発行", note: "締め日に注意", priority: "high", dueDate: "2026-10-31" };
+
+  it("最初の値(initial)が、入力欄に入った状態で開く", () => {
+    renderForm({ heading: "スキルを編集", initial });
+
+    expect(screen.getByRole("dialog", { name: "スキルを編集" })).toBeInTheDocument();
+    expect(nameInput()).toHaveValue("請求書の発行");
+    expect(screen.getByLabelText("優先度")).toHaveValue("high");
+    expect(screen.getByLabelText("期限")).toHaveValue("2026-10-31");
+    expect(screen.getByLabelText("ポイント・考察")).toHaveValue("締め日に注意");
+  });
+
+  it("値を変えて保存すると、変えた内容を、onSubmit に渡す", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderForm({ initial });
+
+    await user.type(nameInput(), "(改)");
+    await user.click(saveButton());
+
+    expect(onSubmit).toHaveBeenCalledWith({ ...initial, name: "請求書の発行(改)" });
+  });
+
+  it("習得日(readonlyAcquiredOn)を渡すと、表示のみで出す。入力欄ではない", () => {
+    renderForm({ initial, readonlyAcquiredOn: "2026-09-01" });
+
+    expect(screen.getByText("習得日: 2026-09-01(自動で記録されるため、編集できません)")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/習得日/)).not.toBeInTheDocument();
+  });
+
+  it("習得日を渡さなければ、習得日は出さない", () => {
+    renderForm({ initial });
+
+    expect(screen.queryByText(/習得日/)).not.toBeInTheDocument();
+  });
+
+  it("別のスキルの値で開き直すと、前の入力は残らず、新しい最初の値になる", async () => {
+    const user = userEvent.setup();
+    const { rerender, onSubmit, onCancel } = renderForm({ initial });
+    await user.type(nameInput(), "(書きかけ)");
+
+    rerender(<SkillForm open={false} heading="スキルを編集" onSubmit={onSubmit} onCancel={onCancel} />);
+    rerender(
+      <SkillForm open heading="スキルを編集" initial={{ ...initial, name: "別のスキル" }} onSubmit={onSubmit} onCancel={onCancel} />,
+    );
+
+    expect(nameInput()).toHaveValue("別のスキル");
+  });
+});

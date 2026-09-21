@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Board } from "@/components/Board";
@@ -43,18 +43,18 @@ describe("Board(スキルボードの表示)", () => {
     expect(within(column("習得済み")).queryByRole("button", { name: "+ スキルを追加" })).not.toBeInTheDocument();
   });
 
-  it("追加ボタンは押せる。まだ使えない操作(優先度順・削除)のボタンは、押せない状態で表示する", () => {
+  it("追加ボタンと削除ボタンは押せる。まだ使えない操作(優先度順)のボタンだけ、押せない状態で表示する", () => {
     render(<Board initialSkills={sampleSkills()} today={TODAY} />);
 
     for (const button of screen.getAllByRole("button", { name: "+ スキルを追加" })) {
       expect(button).toBeEnabled();
     }
-    const notYet = [
-      ...screen.getAllByRole("button", { name: "優先度順" }),
-      ...screen.getAllByRole("button", { name: "削除" }),
-    ];
-    expect(notYet.length).toBeGreaterThan(0);
-    for (const button of notYet) {
+    const deleteButtons = screen.getAllByRole("button", { name: /を削除$/ });
+    expect(deleteButtons).toHaveLength(6); // カード1枚に、1つずつ
+    for (const button of deleteButtons) {
+      expect(button).toBeEnabled();
+    }
+    for (const button of screen.getAllByRole("button", { name: "優先度順" })) {
       expect(button).toBeDisabled();
     }
   });
@@ -394,5 +394,391 @@ describe("Board: スキルの追加", () => {
     render(<Board initialSkills={sampleSkills()} today={TODAY} />);
 
     expect(within(column("習得済み")).queryByRole("button", { name: "+ スキルを追加" })).not.toBeInTheDocument();
+  });
+});
+
+// ---------- スキルの編集(ボード全体の流れ) ----------
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+
+// カード(スキル名で探す)
+const card = (name: string) => screen.getByRole("heading", { name }).closest("article")!;
+
+describe("Board: スキルの編集", () => {
+  it("カードをクリックすると、現在の値が入った編集フォーム(見出し「スキルを編集」)が開く", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(within(card("発注書の確認")).getByText("優先度: 中")); // カードの、どこをクリックしても開く
+
+    expect(screen.getByRole("dialog", { name: "スキルを編集" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/スキル名/)).toHaveValue("発注書の確認");
+    expect(screen.getByLabelText("優先度")).toHaveValue("medium");
+    expect(screen.getByLabelText("期限")).toHaveValue("2026-11-15");
+    expect(screen.getByLabelText("ポイント・考察")).toHaveValue("数量と単価を、注文書と見比べる。");
+  });
+
+  it("スキル名のボタンを押しても(キーボードの Enter でも)、編集フォームが、1つだけ開く", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "クレーム対応" }));
+
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByLabelText(/スキル名/)).toHaveValue("クレーム対応");
+  });
+
+  it("ポイント・考察や期限がないスキルは、それらの欄が、空で開く", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "月次レポートの作成" }));
+
+    expect(screen.getByLabelText("ポイント・考察")).toHaveValue("");
+    expect(screen.getByLabelText("期限")).toHaveValue("2026-10-31");
+  });
+
+  it("習得日は、習得済みのスキルの編集フォームにだけ、表示のみで出す(入力欄ではない)", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "レジ締め" }));
+    const masteredForm = within(screen.getByRole("dialog"));
+    expect(masteredForm.getByText("習得日: 2026-09-01(自動で記録されるため、編集できません)")).toBeInTheDocument();
+    expect(masteredForm.queryByLabelText(/習得日/)).not.toBeInTheDocument(); // 入力欄はない
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    await user.click(screen.getByRole("button", { name: "クレーム対応" })); // 未習得のスキル
+    expect(within(screen.getByRole("dialog")).queryByText(/習得日/)).not.toBeInTheDocument(); // フォームの中だけ(ボードのカードは除く)
+  });
+
+  it("保存すると、PATCH で編集できる項目だけを送り、カードの表示が更新され、フォームが閉じる", async () => {
+    const user = userEvent.setup();
+    const target = sampleSkills()[1]; // 発注書の確認(id 2)
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(toApiSkill({ ...target, name: "発注書の確認(改)", priority: "high", note: "新しいメモ", dueDate: "2026-12-24" })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.clear(screen.getByLabelText(/スキル名/));
+    await user.type(screen.getByLabelText(/スキル名/), "発注書の確認(改)");
+    await user.selectOptions(screen.getByLabelText("優先度"), "high");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:3001/api/v1/skills/2");
+    expect(options.method).toBe("PATCH");
+    expect(JSON.parse(options.body as string)).toEqual({
+      name: "発注書の確認(改)", note: "数量と単価を、注文書と見比べる。", priority: "high", due_date: "2026-11-15",
+    });
+    const updated = card("発注書の確認(改)");
+    expect(within(updated).getByText("優先度: 高")).toBeInTheDocument();
+    expect(within(updated).getByText("期限: 2026-12-24")).toBeInTheDocument();
+    expect(within(updated).getByText("新しいメモ")).toBeInTheDocument();
+  });
+
+  it("編集しても、スキルは、同じ列の、同じ位置のまま(件数も変わらない)", async () => {
+    const user = userEvent.setup();
+    const target = sampleSkills()[1];
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse(toApiSkill({ ...target, name: "改名した" }))));
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.clear(screen.getByLabelText(/スキル名/));
+    await user.type(screen.getByLabelText(/スキル名/), "改名した");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(cardNames("未習得")).toEqual(["クレーム対応", "改名した", "受発注システムの操作"]);
+    expect(within(column("未習得")).getByTitle("スキルの件数")).toHaveTextContent("3");
+  });
+
+  it("ポイント・考察と期限を空にして保存すると、null で送り、カードから消える", async () => {
+    const user = userEvent.setup();
+    const target = sampleSkills()[1];
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(toApiSkill({ ...target, note: null, dueDate: null })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.clear(screen.getByLabelText("ポイント・考察"));
+    fireEvent.change(screen.getByLabelText("期限"), { target: { value: "" } });
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ note: null, due_date: null });
+    const updated = card("発注書の確認");
+    expect(within(updated).getByText("期限: -")).toBeInTheDocument();
+    expect(updated.querySelector(".note")).toBeNull();
+  });
+
+  it("習得済みのスキルを編集しても、習得日は、そのまま表示される(習得日は送らない)", async () => {
+    const user = userEvent.setup();
+    const mastered = sampleSkills()[5]; // レジ締め(習得日 2026-09-01)
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(toApiSkill({ ...mastered, priority: "high" })));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "レジ締め" }));
+    await user.selectOptions(screen.getByLabelText("優先度"), "high");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(within(column("習得済み")).getByText("習得日: 2026-09-01")).toBeInTheDocument();
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(Object.keys(body).sort()).toEqual(["due_date", "name", "note", "priority"]); // status・position・acquired_on は、含まれない
+  });
+
+  it("スキル名を空にして保存すると、通信せず、エラーを出す", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.clear(screen.getByLabelText(/スキル名/));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.getByText("スキル名を入力してください。")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("サーバーが 422 を返したら、項目の下に出し、カードは変わらない", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { due_date: ["期限は不正な値です"] } }, 422)));
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.type(screen.getByLabelText(/スキル名/), "(改)");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(await screen.findByText("期限は不正な値です")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+  });
+
+  it("キャンセルすると、通信せず、閉じる(カードも変わらない)", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.type(screen.getByLabelText(/スキル名/), "(やめた)");
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(cardNames("未習得")).toContain("発注書の確認");
+  });
+
+  it("編集の途中でキャンセルして、別のスキルを開くと、そのスキルの値が入っている(前の入力は残らない)", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+    await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+    await user.type(screen.getByLabelText(/スキル名/), "(書きかけ)");
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    await user.click(screen.getByRole("button", { name: "請求書の発行" }));
+
+    expect(screen.getByLabelText(/スキル名/)).toHaveValue("請求書の発行");
+  });
+
+  describe("別の場所で、すでに削除されていた(404)とき", () => {
+    it("画面を最新に取り直し、お知らせを出して、フォームを閉じる", async () => {
+      const user = userEvent.setup();
+      // 1回目の通信(PATCH)は 404。2回目の通信(一覧の取り直し)は、そのスキルがない一覧
+      const remaining = sampleSkills().filter((skill) => skill.id !== 2).map(toApiSkill);
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404))
+        .mockResolvedValueOnce(jsonResponse(remaining));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+      await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+      await user.type(screen.getByLabelText(/スキル名/), "(改)");
+      await user.click(screen.getByRole("button", { name: "保存" }));
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      expect(screen.getByRole("status")).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
+      expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]); // 最新の一覧
+      expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:3001/api/v1/skills");
+    });
+
+    it("最新を取り直せなかったときは、フォームに、もとのエラーを出して、閉じない", async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404))
+        .mockRejectedValueOnce(new TypeError("fetch failed"));
+      vi.stubGlobal("fetch", fetchMock);
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+      await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+      await user.type(screen.getByLabelText(/スキル名/), "(改)");
+      await user.click(screen.getByRole("button", { name: "保存" }));
+
+      expect(await screen.findByText("指定されたスキルが見つかりません。")).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("お知らせは、「閉じる」で消せる", async () => {
+      const user = userEvent.setup();
+      const remaining = sampleSkills().filter((skill) => skill.id !== 2).map(toApiSkill);
+      vi.stubGlobal(
+        "fetch",
+        vi.fn()
+          .mockResolvedValueOnce(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404))
+          .mockResolvedValueOnce(jsonResponse(remaining)),
+      );
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+      await user.click(screen.getByRole("button", { name: "発注書の確認" }));
+      await user.type(screen.getByLabelText(/スキル名/), "(改)");
+      await user.click(screen.getByRole("button", { name: "保存" }));
+      await screen.findByRole("status");
+
+      await user.click(within(screen.getByRole("status")).getByRole("button", { name: "閉じる" }));
+
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+  });
+});
+
+// ---------- スキルの削除(ボード全体の流れ) ----------
+
+describe("Board: スキルの削除", () => {
+  it("「削除」を押すと、確認のダイアログが開く。編集フォームは、開かない", async () => {
+    const user = userEvent.setup();
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+
+    expect(screen.getByRole("dialog", { name: "「発注書の確認」を削除しますか?" })).toBeInTheDocument();
+    expect(screen.getByText("この操作は取り消せません。")).toBeInTheDocument();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1); // 編集フォームは、開かない
+    expect(screen.queryByLabelText(/スキル名/)).not.toBeInTheDocument();
+  });
+
+  it("確認の「削除」を押すと、DELETE を送り、カードが消え、件数が減り、ダイアログが閉じる", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://localhost:3001/api/v1/skills/2");
+    expect(options.method).toBe("DELETE");
+    expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
+    expect(within(column("未習得")).getByTitle("スキルの件数")).toHaveTextContent("2");
+  });
+
+  it("削除したあと、同じ列のスキルを追加すると、並び順が詰まった状態の末尾につく(サーバーと同じ)", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 })) // 削除
+      .mockResolvedValueOnce(jsonResponse(toApiSkill(makeSkill({ id: 50, name: "新規", position: 2 })), 201)); // 追加
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「クレーム対応」を削除" })); // 先頭を削除
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await user.click(within(column("未習得")).getByRole("button", { name: "+ スキルを追加" }));
+    await user.type(screen.getByLabelText(/スキル名/), "新規");
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(cardNames("未習得")).toEqual(["発注書の確認", "受発注システムの操作", "新規"]));
+  });
+
+  it("習得済みのスキルも、削除できる(列が空になる)", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「レジ締め」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+
+    await waitFor(() => expect(within(column("習得済み")).getByText("スキルがありません")).toBeInTheDocument());
+  });
+
+  it("キャンセルすると、通信せず、閉じる(カードも消えない)", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+    await user.click(screen.getByRole("button", { name: "キャンセル" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(cardNames("未習得")).toContain("発注書の確認");
+  });
+
+  it("API に接続できなかったら、ダイアログの中にエラーを出し、カードは消さない(もう一度、試せる)", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+
+    expect(await screen.findByText(/API に接続できませんでした/)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(cardNames("未習得")).toContain("発注書の確認");
+    expect(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" })).toBeEnabled();
+  });
+
+  it("別の場所で、すでに削除されていた(404)ときは、最新を取り直し、お知らせを出して、閉じる", async () => {
+    const user = userEvent.setup();
+    const remaining = sampleSkills().filter((skill) => skill.id !== 2).map(toApiSkill);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404))
+        .mockResolvedValueOnce(jsonResponse(remaining)),
+    );
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("status")).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
+    expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
+  });
+
+  it("削除に成功すると、前のお知らせは消える", async () => {
+    const user = userEvent.setup();
+    const remaining = sampleSkills().filter((skill) => skill.id !== 2).map(toApiSkill);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404)) // 1つ目: 404
+        .mockResolvedValueOnce(jsonResponse(remaining)) // 取り直し
+        .mockResolvedValueOnce(new Response(null, { status: 204 })), // 2つ目: 成功
+    );
+    render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+    await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+    await screen.findByRole("status");
+
+    await user.click(screen.getByRole("button", { name: "「クレーム対応」を削除" }));
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
+
+    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
   });
 });

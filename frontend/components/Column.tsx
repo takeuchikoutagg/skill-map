@@ -9,9 +9,11 @@ type Props = {
   skills: Skill[];
   today: string;
   onAdd: (status: Status) => void; // 「+ スキルを追加」が押されたとき
+  onEdit: (skill: Skill) => void; // カードがクリックされたとき
+  onDelete: (skill: Skill) => void; // カードの「削除」が押されたとき
 };
 
-export function Column({ status, skills, today, onAdd }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete }: Props) {
   const headingId = `list-${status}`;
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
@@ -35,7 +37,7 @@ export function Column({ status, skills, today, onAdd }: Props) {
       <div className="cards">
         {skills.length === 0 && <p className="empty">スキルがありません</p>}
         {skills.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} today={today} />
+          <SkillCard key={skill.id} skill={skill} today={today} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </div>
 
