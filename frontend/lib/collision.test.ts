@@ -37,15 +37,19 @@ function makeArgs(pointer: { x: number; y: number } | null, dragged: ReturnType<
 
 function detector(items: ColumnItems | null = ITEMS) {
   const lastOverId: { current: UniqueIdentifier | null } = { current: null };
+  const onTarget: { current: boolean | null } = { current: null }; // 直近の判定で、カーソル(またはコピー)が、実際に何かの上にあったか
   const options = {
     getItems: () => items,
     getLastOverId: () => lastOverId.current,
     setLastOverId: (id: UniqueIdentifier | null) => {
       lastOverId.current = id;
     },
+    setOnTarget: (value: boolean) => {
+      onTarget.current = value;
+    },
   };
   const detect = (args: Args) => detectCollisions(args, options);
-  return { detect, lastOverId };
+  return { detect, lastOverId, onTarget };
 }
 
 describe("detectCollisions", () => {
@@ -102,6 +106,90 @@ describe("detectCollisions", () => {
     const { detect } = detector();
 
     expect(detect(makeArgs({ x: 2000, y: 2000 }, rect(1990, 1990, 20, 20)))).toEqual([]);
+  });
+
+  // 実際のブラウザで、画面が壊れた不具合(Maximum update depth exceeded)の再現。
+  // カーソルが、列と列のすき間にあると、「カーソルの下」には何もない。そこで、コピーのカードが重なっている面積で決める
+  // 予備の判定に頼ると、カードが列を移るたびに、レイアウトが変わって、行き先が、2つの列の間で行き来して、止まらなくなる。
+  // カーソルの位置が分かっているときは、すき間では、直前の行き先を保つ。
+  describe("カーソルが、列と列のすき間にあるとき", () => {
+    // すき間(x = 300〜320)の中のカーソル。ドラッグ中のカードは、習得中の列に、より多く重なっている
+    const inGap = () => makeArgs({ x: 310, y: 100 }, rect(305, 60, 100, 80));
+
+    it("コピーが、隣の列のカードに重なっていても、そちらへは切り替えず、直前の行き先を保つ", () => {
+      const { detect } = detector();
+      detect(makeArgs({ x: 100, y: 180 }, rect(90, 170, 20, 20))); // まず、未習得のカード 2 の上
+
+      expect(detect(inGap())).toEqual([{ id: 2 }]);
+    });
+
+    it("直前の行き先がなければ、何も選ばない(重なりの面積では、選ばない)", () => {
+      const { detect } = detector();
+
+      expect(detect(inGap())).toEqual([]);
+    });
+
+    it("何度、判定しても、同じ結果(行き来しない)", () => {
+      const { detect } = detector();
+      detect(makeArgs({ x: 400, y: 90 }, rect(390, 80, 20, 20))); // 習得中のカード 4 の上
+
+      for (let i = 0; i < 5; i++) expect(detect(inGap())).toEqual([{ id: 4 }]);
+    });
+  });
+
+  describe("「いま、何かの上にあるか」の記録(手を離したときに、列の外かどうかを知るため)", () => {
+    it("カーソルが、カードの上にあれば、「上にある」", () => {
+      const { detect, onTarget } = detector();
+
+      detect(makeArgs({ x: 100, y: 180 }, rect(90, 170, 20, 20)));
+
+      expect(onTarget.current).toBe(true);
+    });
+
+    it("カーソルが、列の余白・空の列の上にあっても、「上にある」", () => {
+      const { detect, onTarget } = detector();
+
+      detect(makeArgs({ x: 150, y: 330 }, rect(140, 320, 20, 20)));
+      expect(onTarget.current).toBe(true);
+      detect(makeArgs({ x: 780, y: 200 }, rect(770, 190, 20, 20)));
+      expect(onTarget.current).toBe(true);
+    });
+
+    it("列と列のすき間・列の外では、直前の行き先を返す(ちらつき防止)が、「上にない」と記録する", () => {
+      const { detect, onTarget } = detector();
+      detect(makeArgs({ x: 100, y: 180 }, rect(90, 170, 20, 20)));
+
+      expect(detect(makeArgs({ x: 310, y: 100 }, rect(305, 60, 100, 80)))).toEqual([{ id: 2 }]); // すき間
+      expect(onTarget.current).toBe(false);
+      expect(detect(makeArgs({ x: 2000, y: 2000 }, rect(1990, 1990, 20, 20)))).toEqual([{ id: 2 }]); // 遠く
+      expect(onTarget.current).toBe(false);
+    });
+
+    it("直前の行き先もないときも、「上にない」", () => {
+      const { detect, onTarget } = detector();
+
+      detect(makeArgs({ x: 2000, y: 2000 }, rect(1990, 1990, 20, 20)));
+
+      expect(onTarget.current).toBe(false);
+    });
+
+    it("また、何かの上に戻れば、「上にある」に戻る", () => {
+      const { detect, onTarget } = detector();
+      detect(makeArgs({ x: 2000, y: 2000 }, rect(1990, 1990, 20, 20)));
+
+      detect(makeArgs({ x: 400, y: 90 }, rect(390, 80, 20, 20)));
+
+      expect(onTarget.current).toBe(true);
+    });
+
+    it("カーソルがない(キーボード)ときは、コピーのカードが重なっていれば、「上にある」", () => {
+      const { detect, onTarget } = detector();
+
+      detect(makeArgs(null, rect(335, 60, 100, 60)));
+      expect(onTarget.current).toBe(true);
+      detect(makeArgs(null, rect(1990, 1990, 20, 20)));
+      expect(onTarget.current).toBe(false);
+    });
   });
 
   it("重なったものは、覚えておく(直前に重なっていたものとして)", () => {

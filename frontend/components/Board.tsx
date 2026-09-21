@@ -63,6 +63,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const [dragItems, setDragItems] = useState<ColumnItems | null>(null); // 列ごとの、カードの並び(見た目用。まだ保存しない)
   const dragItemsRef = useRef<ColumnItems | null>(null); // dragItems の、最新の値(判定の関数から、すぐ読めるように)
   const lastOverId = useRef<UniqueIdentifier | null>(null); // 直前に重なっていたカード・列
+  const onTarget = useRef(true); // いま、カーソルが、実際にカード・列の上にあるか(離したときに、列の外なら、移動しない)
 
   const sensors = useSensors(
     // マウスは、6px 以上動かしたときだけ、ドラッグを始める(少し動かしただけなら、クリック=編集を開く)
@@ -156,6 +157,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   function handleDragStart(event: DragStartEvent) {
     if (busy) return; // 前の移動・並べ替えの通信中は、受け付けない
     lastOverId.current = null;
+    onTarget.current = true; // つかんだ時点では、カードの上にある
     setActiveId(Number(event.active.id));
     updateDragItems(itemsFromSkills(skills)); // 見た目用の並びを、いまの一覧から作る
   }
@@ -176,7 +178,8 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
     const items = dragItemsRef.current;
     const id = Number(event.active.id);
     endDrag();
-    if (!items || !event.over) return; // 置ける場所の外で離した: 元のまま
+    // 置ける場所の外で離した(何の上でもない): 元のまま。(event.over は、ちらつき防止のための「直前の行き先」のことがあるので、onTarget でも確かめる)
+    if (!items || !event.over || !onTarget.current) return;
 
     const target = resolveDrop(items, id, event.over.id);
     const current = currentPosition(skills, id);
@@ -267,6 +270,9 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
             getLastOverId: () => lastOverId.current,
             setLastOverId: (id) => {
               lastOverId.current = id;
+            },
+            setOnTarget: (value) => {
+              onTarget.current = value;
             },
           })
         }

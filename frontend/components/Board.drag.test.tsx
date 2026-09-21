@@ -33,6 +33,20 @@ const drop = (id: number, overId: number | string | null) =>
   act(() => dnd().onDragEnd({ active: active(id), over: overId === null ? null : over(overId) } as never));
 const cancel = () => act(() => dnd().onDragCancel({} as never));
 
+// @dnd-kit が、ドラッグ中に呼ぶ「いま、何の上にあるか」の判定を、まねて呼ぶ。
+// 置ける場所は、カード 4 が、(0,0)〜(200,200) の1つだけ。カーソルが、その中なら「カード 4 の上」、外なら「どこの上でもない」。
+function detectAt(pointer: { x: number; y: number }) {
+  const rect = { left: 0, top: 0, right: 200, bottom: 200, width: 200, height: 200 };
+  const args = {
+    active: { id: 2 },
+    collisionRect: { left: pointer.x - 10, top: pointer.y - 10, right: pointer.x + 10, bottom: pointer.y + 10, width: 20, height: 20 },
+    droppableRects: new Map([[4, rect]]),
+    droppableContainers: [{ id: 4, key: 4, disabled: false, data: { current: undefined }, node: { current: null }, rect: { current: rect } }],
+    pointerCoordinates: pointer,
+  };
+  return act(() => void dnd().collisionDetection!(args as never));
+}
+
 const TODAY = "2026-09-20";
 const column = (name: string) => screen.getByRole("region", { name });
 const cardNames = (name: string) =>
@@ -250,6 +264,69 @@ describe("Board: ドラッグ&ドロップ", () => {
       expect(fetchMock).not.toHaveBeenCalled();
       expect(cardNames("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
       expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+    });
+
+    // 実際のブラウザで見つかった不具合: 列の真下の、何もない所で離すと、動かす途中で最後に通った位置に、入ってしまった
+    // (見た目のちらつきを防ぐために、「直前の行き先」を保っているため)。仕様(docs/04)は、「列の外にドロップしたら、元の位置に戻る」。
+    describe("カーソルが、どこの上にもない所で離したとき", () => {
+      it("直前の行き先が残っていても、元のまま(通信しない)。ドラッグ中の見た目も、元に戻る", () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4); // 習得中の「請求書の発行」の上に来て、その列に入る
+        detectAt({ x: 100, y: 100 }); // カード 4 の上
+        detectAt({ x: 900, y: 900 }); // どこの上でもない所へ(直前の行き先は、カード 4 のまま)
+        drop(2, 4); // 直前の行き先(カード 4)を持ったまま、離す
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(cardNames("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
+        expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+      });
+
+      it("列の中の並び替えでも、同じ(離した所が、どこの上でもなければ、並びは変わらない)", () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(1);
+        detectAt({ x: 100, y: 100 });
+        detectAt({ x: 900, y: 900 });
+        drop(1, 3);
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+      });
+
+      it("カード・列の上で離せば、これまでどおり移動する(比較用)", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(movedResponse(2, { status: "learning", position: 0 }));
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4);
+        detectAt({ x: 100, y: 100 }); // カード 4 の上のまま
+        drop(2, 2);
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      });
+
+      it("次のドラッグでは、「上にある」状態から、始まる(前のドラッグの状態を、引きずらない)", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(movedResponse(2, { status: "learning", position: 0 }));
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+        start(2);
+        detectAt({ x: 900, y: 900 });
+        drop(2, 2);
+        expect(fetchMock).not.toHaveBeenCalled();
+
+        start(2); // 新しいドラッグ
+        hover(2, 4);
+        drop(2, 2);
+
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      });
     });
 
     it("キャンセル(Esc)すると、元のまま(通信しない)", () => {
