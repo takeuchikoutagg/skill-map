@@ -23,7 +23,8 @@ const dnd = () => captured.props as Required<Pick<DndContextProps, "onDragStart"
 
 const TODAY = "2026-09-20";
 const column = (name: string) => screen.getByRole("region", { name });
-const sortButton = (name: string) => within(column(name)).getByRole("button", { name: "優先度順" });
+// 通信中は、ボタンの文字が「並べ替え中…」になる
+const sortButton = (name: string) => within(column(name)).getByRole("button", { name: /^(優先度順|並べ替え中…)$/ });
 const cardNames = (name: string) =>
   within(column(name)).queryAllByRole("heading", { level: 3 }).map((heading) => heading.textContent);
 
@@ -155,10 +156,14 @@ describe("Board: 優先度順の並べ替え", () => {
 
       await waitFor(() => expect(sortButton("未習得")).toBeDisabled());
       expect(sortButton("習得中")).toBeDisabled();
+      // 押した列のボタンだけ、「並べ替え中…」と出る(もう1つは、そのまま)
+      expect(sortButton("未習得")).toHaveTextContent("並べ替え中…");
+      expect(sortButton("習得中")).toHaveTextContent("優先度順");
 
       call.resolve(sortedResponse("unlearned"));
       await waitFor(() => expect(sortButton("習得中")).toBeEnabled());
       expect(sortButton("未習得")).toBeEnabled();
+      expect(sortButton("未習得")).toHaveTextContent("優先度順"); // 終わったら、元に戻る
     });
 
     it("同じ瞬間に2回押されても、通信は1回だけ", async () => {

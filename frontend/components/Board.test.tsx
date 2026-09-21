@@ -8,6 +8,13 @@ import { makeSkill, sampleSkills, toApiSkill } from "@/lib/fixtures";
 
 const TODAY = "2026-09-20";
 
+// ページの再読み込み(window.location.reload)を、模擬する。jsdom には、ページを読み込み直す機能がない
+function stubReload() {
+  const reload = vi.fn();
+  vi.stubGlobal("location", { ...window.location, reload });
+  return reload;
+}
+
 // 列(未習得・習得中・習得済み)を、見出しの名前で探す
 const column = (name: string) => screen.getByRole("region", { name });
 
@@ -182,7 +189,16 @@ describe("LoadError(取得に失敗したときの表示)", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("スキルを取得できませんでした");
     expect(alert).toHaveTextContent("テスト用の文章");
-    expect(alert).toHaveTextContent("バックエンド(API)が動いているかを確かめてから、ページを再読み込みしてください。");
+    expect(alert).toHaveTextContent("バックエンド(API)が動いているかを確かめてから、「再読み込み」を押してください。");
+  });
+
+  it("「再読み込み」ボタンがある(押すと、ページを読み込み直す)", async () => {
+    const reload = stubReload();
+    render(<LoadError message="テスト用の文章" />);
+
+    await userEvent.click(within(screen.getByRole("alert")).getByRole("button", { name: "再読み込み" }));
+
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 
   describe("loadErrorMessage(原因に合わせた文章)", () => {

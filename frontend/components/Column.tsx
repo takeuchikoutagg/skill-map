@@ -17,11 +17,12 @@ type Props = {
   onDelete: (skill: Skill) => void; // カードの「削除」が押されたとき
   onSort: (status: Status) => void; // 「優先度順」が押されたとき
   sortDisabled: boolean; // 「優先度順」を押せないか(並べ替え・移動の通信中、ドラッグ中)
+  sorting: boolean; // この列の、並べ替えの通信中か(ボタンに「並べ替え中…」と出す)
   highlighted: boolean; // ドラッグ中に、ここに置かれる列か(枠を強調する)
   dragDisabled: boolean; // ドラッグできないか(移動の通信中)
 };
 
-export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort, sortDisabled, highlighted, dragDisabled }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort, sortDisabled, sorting, highlighted, dragDisabled }: Props) {
   // 列そのものを、ドロップ先にする(空の列にも、カードを置けるように)
   const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const headingId = `list-${status}`;
@@ -56,7 +57,7 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort,
               title={canSort ? "優先度の高い順(高 → 中 → 低)に並べ替えます" : "スキルが2件以上あると、並べ替えできます"}
               onClick={() => onSort(status)}
             >
-              優先度順
+              {sorting ? "並べ替え中…" : "優先度順"}
             </button>
           )}
         </div>
