@@ -173,3 +173,25 @@ export async function deleteSkill(id: number, baseUrl: string = browserApiUrl())
     throw await parseApiError(response);
   }
 }
+
+// PATCH /api/v1/skills/:id/move: スキルを、指定した列(状態)の、指定した位置に移動する(列間の移動と、列内の並び替え)。
+// position は、移動したあとの位置(0 始まり)。移動元・移動先の並び順の振り直しと、習得日の記録・消去は、サーバーが行う。
+// 成功したら、移動したスキル(サーバーが決めた、習得日と並び順を含む)を返す。
+export async function requestMove(
+  id: number,
+  status: Status,
+  position: number,
+  baseUrl: string = browserApiUrl(),
+): Promise<Skill> {
+  const response = await fetch(`${baseUrl}/api/v1/skills/${id}/move`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ status, position }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+  return toSkill((await response.json()) as ApiSkill);
+}
