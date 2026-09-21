@@ -17,7 +17,7 @@ vi.mock("@dnd-kit/sortable", async () => {
 });
 
 const noop = () => {};
-const props = { status: "learning" as const, today: "2026-09-20", onAdd: noop, onEdit: noop, onDelete: noop, highlighted: false, dragDisabled: false };
+const props = { status: "learning" as const, today: "2026-09-20", onAdd: noop, onEdit: noop, onDelete: noop, onSort: noop, sortDisabled: false, highlighted: false, dragDisabled: false };
 
 beforeEach(() => {
   received.items = [];

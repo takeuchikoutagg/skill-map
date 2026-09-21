@@ -7,6 +7,7 @@ import {
   fetchSkills,
   parseApiError,
   requestMove,
+  requestSort,
   REQUEST_TIMEOUT_MS,
   serverApiUrl,
   toSkill,
@@ -439,5 +440,65 @@ describe("requestMove(スキルの移動)", () => {
 
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     await expect(requestMove(3, "mastered", 0, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
+  });
+});
+
+describe("requestSort(優先度順の並べ替え)", () => {
+  const column: ApiSkill[] = [
+    { id: 3, name: "受発注システムの操作", note: null, status: "unlearned", priority: "high", due_date: null, acquired_on: null, position: 0 },
+    { id: 1, name: "クレーム対応", note: null, status: "unlearned", priority: "low", due_date: null, acquired_on: null, position: 1 },
+  ];
+
+  it("並べ替える状態を、POST で送り、並べ替え後の、その列のスキルを、画面の形で返す", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(column));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const skills = await requestSort("unlearned", "http://api.test");
+
+    expect(skills.map((skill) => skill.id)).toEqual([3, 1]); // 返事の順番のまま
+    expect(skills[0]).toMatchObject({ priority: "high", dueDate: null, position: 0 }); // 画面の形(camelCase)
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://api.test/api/v1/skills/sort");
+    expect(options.method).toBe("POST");
+    expect(options.headers).toMatchObject({ "Content-Type": "application/json" });
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    expect(JSON.parse(options.body as string)).toEqual({ status: "unlearned" });
+  });
+
+  it("スキルがない列は、空の配列", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([])));
+
+    await expect(requestSort("learning", "http://api.test")).resolves.toEqual([]);
+  });
+
+  it("場所を指定しなければ、環境変数 NEXT_PUBLIC_API_URL を使う", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://from-env.test");
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await requestSort("learning");
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://from-env.test/api/v1/skills/sort");
+  });
+
+  it("習得済みを指定した(422)ときは、ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["習得済みの列は、優先度順に並べ替えできません。"] } }, 422)));
+
+    const error = await requestSort("mastered", "http://api.test").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 422, fieldErrors: { base: ["習得済みの列は、優先度順に並べ替えできません。"] } });
+  });
+
+  it("返事が配列でなければ、ApiError を投げる(壊れた返事で、画面を壊さない)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ oops: true })));
+
+    await expect(requestSort("unlearned", "http://api.test")).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("接続できなかったときは、もとの例外がそのまま出る", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(requestSort("unlearned", "http://api.test")).rejects.toThrow("fetch failed");
   });
 });

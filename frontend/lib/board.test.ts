@@ -4,6 +4,7 @@ import {
   isOverdue,
   moveSkill,
   removeSkill,
+  replaceColumn,
   replaceSkill,
   skillsInStatus,
   sortByPriority,
@@ -369,6 +370,58 @@ describe("sortByPriority(優先度順)", () => {
     const before = frozen(sampleSkills());
 
     expect(() => sortByPriority(before, "unlearned")).not.toThrow();
+  });
+});
+
+describe("replaceColumn(優先度順のあと、列をサーバーの返事で置き換える)", () => {
+  const sortedUnlearned = () => sortByPriority(sampleSkills(), "unlearned").filter((skill) => skill.status === "unlearned");
+
+  it("その列のスキルが、返ってきたものに置き換わる(並び順も、返事のとおり)", () => {
+    const result = replaceColumn(sampleSkills(), "unlearned", sortedUnlearned());
+
+    expect(skillsInStatus(result, "unlearned").map((skill) => skill.id)).toEqual([3, 2, 1]); // 高・中・低
+    expect(skillsInStatus(result, "unlearned").map((skill) => skill.position)).toEqual([0, 1, 2]);
+  });
+
+  it("ほかの列は、同じもの(同じ参照)のまま", () => {
+    const before = sampleSkills();
+
+    const result = replaceColumn(before, "unlearned", sortedUnlearned());
+
+    for (const id of [4, 5, 6]) expect(get(result, id)).toBe(get(before, id));
+    expect(result).toHaveLength(6);
+  });
+
+  it("返事にないスキルは、その列から消える。返事にあって、手元にないスキルは、増える", () => {
+    const fromServer = [makeSkill({ id: 50, status: "unlearned", position: 0 }), { ...get(sampleSkills(), 1), position: 1 }];
+
+    const result = replaceColumn(sampleSkills(), "unlearned", fromServer);
+
+    expect(skillsInStatus(result, "unlearned").map((skill) => skill.id)).toEqual([50, 1]);
+    expect(result).toHaveLength(5);
+  });
+
+  it("返事が空なら、その列は空になる", () => {
+    const result = replaceColumn(sampleSkills(), "learning", []);
+
+    expect(skillsInStatus(result, "learning")).toEqual([]);
+    expect(skillsInStatus(result, "unlearned")).toHaveLength(3);
+  });
+
+  it("ほかの列のスキルが、返事に混ざっていても、その列に入れない(別の列を壊さない)", () => {
+    const before = sampleSkills();
+    const stray = { ...get(before, 6), position: 0 }; // 習得済みのスキル
+
+    const result = replaceColumn(before, "unlearned", [...sortedUnlearned(), stray]);
+
+    expect(skillsInStatus(result, "unlearned")).toHaveLength(3);
+    expect(get(result, 6)).toBe(get(before, 6)); // 習得済みは、もとのまま
+  });
+
+  it("元の配列を書き換えない", () => {
+    const before = frozen(sampleSkills());
+
+    expect(() => replaceColumn(before, "unlearned", sortedUnlearned())).not.toThrow();
   });
 });
 
