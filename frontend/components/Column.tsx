@@ -2,6 +2,7 @@
 
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useMemo } from "react";
 import { SortableSkillCard } from "@/components/SortableSkillCard";
 import { columnDropId } from "@/lib/drag";
 import { STATUS_LABELS, type Skill, type Status } from "@/lib/types";
@@ -27,6 +28,13 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlig
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
 
+  // SortableContext に渡す、カードの id の並び。
+  // 中身が同じなら、同じ配列を渡し続ける(描画のたびに、新しい配列を作って渡してはいけない)。
+  // @dnd-kit は「渡された配列が、前と違うか」で、カードの位置を測り直す。測り直すと再描画が起きて、また新しい配列が渡されて、
+  // …と、際限なく繰り返し、「Maximum update depth exceeded」のエラーで画面が壊れることがある(習得中 → 習得済みのドラッグで実際に起きた)。
+  const idsKey = skills.map((skill) => skill.id).join(",");
+  const ids = useMemo(() => (idsKey === "" ? [] : idsKey.split(",").map(Number)), [idsKey]);
+
   return (
     <section
       ref={setNodeRef}
@@ -49,7 +57,7 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlig
 
       <div className="cards">
         {skills.length === 0 && <p className="empty">スキルがありません</p>}
-        <SortableContext items={skills.map((skill) => skill.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           {skills.map((skill) => (
             <SortableSkillCard key={skill.id} skill={skill} today={today} disabled={dragDisabled} onEdit={onEdit} onDelete={onDelete} />
           ))}
