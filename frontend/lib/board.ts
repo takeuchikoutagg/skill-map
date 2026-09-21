@@ -148,3 +148,23 @@ export function sortByPriority(skills: readonly Skill[], status: SortableStatus)
   const updated = new Map<number, Skill>(renumbered(sorted).map((skill) => [skill.id, skill]));
   return skills.map((skill) => updated.get(skill.id) ?? skill);
 }
+
+// ---------- 編集と削除 ----------
+
+// スキル1件を、更新後のものに置き換える(編集のあと)。同じ id がなければ、何も変えない。
+export function replaceSkill(skills: readonly Skill[], updated: Skill): Skill[] {
+  return skills.map((skill) => (skill.id === updated.id ? updated : skill));
+}
+
+/*
+ * スキルの削除。バックエンドと同じ規則で、削除した列の並び順を、0 から連番に詰める。
+ * ほかの列は、同じもの(同じ参照)のまま。存在しない id のときは、何も変えない。
+ */
+export function removeSkill(skills: readonly Skill[], id: number): Skill[] {
+  const target = skills.find((skill) => skill.id === id);
+  if (!target) return [...skills];
+
+  const others = skills.filter((skill) => skill.id !== id);
+  const updated = new Map<number, Skill>(renumbered(skillsInStatus(others, target.status)).map((skill) => [skill.id, skill]));
+  return others.map((skill) => updated.get(skill.id) ?? skill);
+}
