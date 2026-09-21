@@ -44,16 +44,21 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort,
       aria-labelledby={headingId}
     >
       <div className="list-head">
-        <h2 id={headingId}>{STATUS_LABELS[status]}</h2>
+        {/* tabIndex={-1}: Tab では止まらないが、削除のあとなどに、プログラムからフォーカスを移せる */}
+        <h2 id={headingId} tabIndex={-1}>
+          {STATUS_LABELS[status]}
+        </h2>
         <div className="list-tools">
           <span className="count" title="スキルの件数">
             {skills.length}
+            <span className="sr-only">件</span>
           </span>
           {editable && (
             <button
               type="button"
               className="sort-btn"
               disabled={sortDisabled || !canSort}
+              aria-describedby={headingId} // 「優先度順、未習得」のように、どの列のボタンかも、読み上げられる
               title={canSort ? "優先度の高い順(高 → 中 → 低)に並べ替えます" : "スキルが2件以上あると、並べ替えできます"}
               onClick={() => onSort(status)}
             >
@@ -73,7 +78,7 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort,
       </div>
 
       {editable && (
-        <button type="button" className="add-skill" onClick={() => onAdd(status)}>
+        <button type="button" className="add-skill" aria-describedby={headingId} onClick={() => onAdd(status)}>
           + スキルを追加
         </button>
       )}

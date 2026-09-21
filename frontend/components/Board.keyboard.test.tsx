@@ -1,7 +1,7 @@
 // 本物の @dnd-kit を使って、キーボード操作(Space でつかむ → 矢印で動かす → Space で置く)が、最後まで動くかを確かめる。
 // Board.drag.test.tsx は、@dnd-kit を模擬して、判定のあとの処理を細かく確かめている。こちらは、@dnd-kit と Board の「つなぎ目」を確かめる。
 // マウスのドラッグは、jsdom では、正確に再現できない(ブラウザで、確認する)。
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Board } from "@/components/Board";
@@ -64,6 +64,8 @@ function stubMoveApi() {
   return fetchMock;
 }
 
+const column = (name: string) => screen.getByRole("region", { name });
+
 const titlesIn = (name: string) =>
   Array.from(screen.getByRole("region", { name }).querySelectorAll("h3")).map((heading) => heading.textContent);
 
@@ -106,6 +108,8 @@ describe("キーボードで、カードを動かす(本物の @dnd-kit)", () =>
     expect((init as RequestInit).method).toBe("PATCH");
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({ status: "learning", position: 2 });
 
+    // 置いたあとも、フォーカスは、移したカードに残る(キーボードの人が、位置を見失わない)
+    expect(document.activeElement).toBe(within(column("習得中")).getByRole("heading", { name: "発注書の確認" }).closest("article"));
     // サーバーの返事のあとも、その列にいる。元の列からは、なくなる
     expect(titlesIn("習得中")).toEqual(["請求書の発行", "月次レポートの作成", "発注書の確認"]);
     expect(titlesIn("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
@@ -128,5 +132,7 @@ describe("キーボードで、カードを動かす(本物の @dnd-kit)", () =>
     expect(fetchMock).not.toHaveBeenCalled();
     expect(titlesIn("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
     expect(titlesIn("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+    // やめたあとも、フォーカスは、そのカードに残る
+    expect(document.activeElement).toBe(within(column("未習得")).getByRole("heading", { name: "発注書の確認" }).closest("article"));
   });
 });
