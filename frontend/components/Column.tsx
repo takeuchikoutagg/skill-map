@@ -1,4 +1,9 @@
-import { SkillCard } from "@/components/SkillCard";
+"use client";
+
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableSkillCard } from "@/components/SortableSkillCard";
+import { columnDropId } from "@/lib/drag";
 import { STATUS_LABELS, type Skill, type Status } from "@/lib/types";
 
 const COMING_SOON = "この機能は、次のステップで作ります";
@@ -11,15 +16,23 @@ type Props = {
   onAdd: (status: Status) => void; // 「+ スキルを追加」が押されたとき
   onEdit: (skill: Skill) => void; // カードがクリックされたとき
   onDelete: (skill: Skill) => void; // カードの「削除」が押されたとき
+  highlighted: boolean; // ドラッグ中に、ここに置かれる列か(枠を強調する)
+  dragDisabled: boolean; // ドラッグできないか(移動の通信中)
 };
 
-export function Column({ status, skills, today, onAdd, onEdit, onDelete }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete, highlighted, dragDisabled }: Props) {
+  // 列そのものを、ドロップ先にする(空の列にも、カードを置けるように)
+  const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const headingId = `list-${status}`;
   // 「優先度順」ボタンと「+ スキルを追加」ボタンは、未習得・習得中の列にだけ置く(習得済みには置かない)
   const editable = status !== "mastered";
 
   return (
-    <section className={`list${status === "mastered" ? " list-done" : ""}`} aria-labelledby={headingId}>
+    <section
+      ref={setNodeRef}
+      className={`list${status === "mastered" ? " list-done" : ""}${highlighted ? " drop-target" : ""}`}
+      aria-labelledby={headingId}
+    >
       <div className="list-head">
         <h2 id={headingId}>{STATUS_LABELS[status]}</h2>
         <div className="list-tools">
@@ -36,9 +49,11 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete }: Props
 
       <div className="cards">
         {skills.length === 0 && <p className="empty">スキルがありません</p>}
-        {skills.map((skill) => (
-          <SkillCard key={skill.id} skill={skill} today={today} onEdit={onEdit} onDelete={onDelete} />
-        ))}
+        <SortableContext items={skills.map((skill) => skill.id)} strategy={verticalListSortingStrategy}>
+          {skills.map((skill) => (
+            <SortableSkillCard key={skill.id} skill={skill} today={today} disabled={dragDisabled} onEdit={onEdit} onDelete={onDelete} />
+          ))}
+        </SortableContext>
       </div>
 
       {editable && (

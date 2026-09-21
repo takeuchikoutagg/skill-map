@@ -607,7 +607,7 @@ describe("Board: スキルの編集", () => {
       await user.click(screen.getByRole("button", { name: "保存" }));
 
       await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-      expect(screen.getByRole("status")).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
+      expect(screen.getByRole("status", { name: "お知らせ" })).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
       expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]); // 最新の一覧
       expect(fetchMock.mock.calls[1][0]).toBe("http://localhost:3001/api/v1/skills");
     });
@@ -627,7 +627,7 @@ describe("Board: スキルの編集", () => {
 
       expect(await screen.findByText("指定されたスキルが見つかりません。")).toBeInTheDocument();
       expect(screen.getByRole("dialog")).toBeInTheDocument();
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.queryByRole("status", { name: "お知らせ" })).not.toBeInTheDocument();
     });
 
     it("お知らせは、「閉じる」で消せる", async () => {
@@ -643,11 +643,11 @@ describe("Board: スキルの編集", () => {
       await user.click(screen.getByRole("button", { name: "発注書の確認" }));
       await user.type(screen.getByLabelText(/スキル名/), "(改)");
       await user.click(screen.getByRole("button", { name: "保存" }));
-      await screen.findByRole("status");
+      await screen.findByRole("status", { name: "お知らせ" });
 
-      await user.click(within(screen.getByRole("status")).getByRole("button", { name: "閉じる" }));
+      await user.click(within(screen.getByRole("status", { name: "お知らせ" })).getByRole("button", { name: "閉じる" }));
 
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.queryByRole("status", { name: "お知らせ" })).not.toBeInTheDocument();
     });
   });
 });
@@ -757,7 +757,7 @@ describe("Board: スキルの削除", () => {
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
 
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(screen.getByRole("status")).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
+    expect(screen.getByRole("status", { name: "お知らせ" })).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
     expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
   });
 
@@ -774,11 +774,11 @@ describe("Board: スキルの削除", () => {
     render(<Board initialSkills={sampleSkills()} today={TODAY} />);
     await user.click(screen.getByRole("button", { name: "「発注書の確認」を削除" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
-    await screen.findByRole("status");
+    await screen.findByRole("status", { name: "お知らせ" });
 
     await user.click(screen.getByRole("button", { name: "「クレーム対応」を削除" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "削除" }));
 
-    await waitFor(() => expect(screen.queryByRole("status")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("status", { name: "お知らせ" })).not.toBeInTheDocument());
   });
 });
