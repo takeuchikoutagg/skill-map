@@ -41,7 +41,7 @@ cd backend && ./start.sh -d
 cd frontend && ./start.sh
 ```
 
-- **サーバーを動かし続けるので、コマンドは戻らない。** Claude Code から動かすときは、バックグラウンドで実行する(Bash ツールの `run_in_background: true`)
+- **サーバーを動かし続けるので、コマンドは戻らない。** Claude Code から動かすときは、バックグラウンドで実行する(Bash ツールの `run_in_background: true`。コマンドの末尾に `&` は付けない。付けると、ツール側は「終わった」と扱い、サーバーの状態が分かりにくくなる)
 - `node_modules/` がなければ、`start.sh` が、先に `npm ci` を実行する(初めてのとき)
 - 「Ready」と表示されたら、起動している
 
