@@ -3,6 +3,8 @@ import {
   groupByStatus,
   isOverdue,
   moveSkill,
+  removeSkill,
+  replaceSkill,
   skillsInStatus,
   sortByPriority,
   todayInTokyo,
@@ -367,5 +369,104 @@ describe("sortByPriority(優先度順)", () => {
     const before = frozen(sampleSkills());
 
     expect(() => sortByPriority(before, "unlearned")).not.toThrow();
+  });
+});
+
+describe("replaceSkill(編集のあとの置き換え)", () => {
+  it("同じ id のスキルを、更新後のものに置き換える。ほかは、同じもの(同じ参照)のまま", () => {
+    const before = sampleSkills();
+
+    const result = replaceSkill(before, { ...get(before, 2), name: "発注書の確認(改)", priority: "high" });
+
+    expect(get(result, 2)).toMatchObject({ name: "発注書の確認(改)", priority: "high", status: "unlearned", position: 1 });
+    for (const id of [1, 3, 4, 5, 6]) expect(get(result, id)).toBe(get(before, id));
+    expect(result).toHaveLength(6);
+  });
+
+  it("同じ id がなければ、何も変えない", () => {
+    const before = sampleSkills();
+
+    expect(replaceSkill(before, makeSkill({ id: 999 }))).toEqual(before);
+  });
+
+  it("元の配列を書き換えない", () => {
+    const before = frozen(sampleSkills());
+
+    expect(() => replaceSkill(before, { ...before[0], name: "x" })).not.toThrow();
+    expect(before[0].name).toBe("クレーム対応");
+  });
+});
+
+describe("removeSkill(削除。同じ列の並び順を詰める。バックエンドと同じ規則)", () => {
+  // バックエンドの spec と同じ例: A B C D(並び順 0, 1, 2, 3)
+  const abcd = () => ["A", "B", "C", "D"].map((name, i) => makeSkill({ id: i + 1, name, position: i }));
+
+  it("真ん中を削除すると、後ろのスキルが1つずつ前に詰まる", () => {
+    expect(positions(removeSkill(abcd(), 2), "unlearned")).toEqual([[1, 0], [3, 1], [4, 2]]);
+  });
+
+  it("先頭を削除すると、すべてが1つずつ前に詰まる", () => {
+    expect(positions(removeSkill(abcd(), 1), "unlearned")).toEqual([[2, 0], [3, 1], [4, 2]]);
+  });
+
+  it("末尾を削除しても、ほかの並び順は変わらない", () => {
+    expect(positions(removeSkill(abcd(), 4), "unlearned")).toEqual([[1, 0], [2, 1], [3, 2]]);
+  });
+
+  it("続けて削除しても、いつも 0 からの連番", () => {
+    const result = removeSkill(removeSkill(abcd(), 2), 3);
+
+    expect(positions(result, "unlearned")).toEqual([[1, 0], [4, 1]]);
+  });
+
+  it("最後の1件を削除すると、その列は空になる", () => {
+    expect(removeSkill([makeSkill({ id: 1 })], 1)).toEqual([]);
+  });
+
+  it("並び順が歯抜けでも、0 からの連番に直る(順番は変えない)", () => {
+    const gaps = [
+      makeSkill({ id: 1, position: 0 }),
+      makeSkill({ id: 2, position: 2 }),
+      makeSkill({ id: 3, position: 7 }),
+    ];
+
+    expect(positions(removeSkill(gaps, 1), "unlearned")).toEqual([[2, 0], [3, 1]]);
+  });
+
+  it("ほかの列は、同じもの(同じ参照)のまま。習得済みの列を削除しても、習得日は変わらない", () => {
+    const before = sampleSkills();
+
+    const result = removeSkill(before, 2); // 未習得を削除
+
+    for (const id of [4, 5, 6]) expect(get(result, id)).toBe(get(before, id));
+    expect(positions(result, "unlearned")).toEqual([[1, 0], [3, 1]]);
+
+    const mastered = removeSkill(
+      [
+        makeSkill({ id: 1, status: "mastered", acquiredOn: "2026-09-01", position: 0 }),
+        makeSkill({ id: 2, status: "mastered", acquiredOn: "2026-09-02", position: 1 }),
+      ],
+      1,
+    );
+    expect(mastered).toEqual([makeSkill({ id: 2, status: "mastered", acquiredOn: "2026-09-02", position: 0 })]);
+  });
+
+  it("存在しない id のときは、何も変えない", () => {
+    const before = sampleSkills();
+
+    expect(removeSkill(before, 999)).toEqual(before);
+  });
+
+  it("元の配列を書き換えない", () => {
+    const before = frozen(sampleSkills());
+
+    expect(() => removeSkill(before, 1)).not.toThrow();
+    expect(before).toHaveLength(6);
+  });
+
+  it("削除したあとに追加すると、詰めたあとの末尾になる(サーバーと同じ並び順)", () => {
+    const afterRemove = removeSkill(abcd(), 2); // A, C, D → 並び順 0, 1, 2
+
+    expect(Math.max(...skillsInStatus(afterRemove, "unlearned").map((s) => s.position)) + 1).toBe(3);
   });
 });

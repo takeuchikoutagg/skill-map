@@ -3,11 +3,13 @@ import {
   ApiError,
   browserApiUrl,
   createSkill,
+  deleteSkill,
   fetchSkills,
   parseApiError,
   REQUEST_TIMEOUT_MS,
   serverApiUrl,
   toSkill,
+  updateSkill,
   type ApiSkill,
 } from "@/lib/api";
 import { sampleSkills, toApiSkill } from "@/lib/fixtures";
@@ -275,5 +277,114 @@ describe("createSkill(スキルの追加)", () => {
 
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     await expect(createSkill("unlearned", input, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
+  });
+});
+
+describe("updateSkill(スキルの編集)", () => {
+  const input = { name: "レジ締め(改)", note: "更新後のメモ", priority: "low", dueDate: "2026-12-01" };
+  const updated: ApiSkill = {
+    id: 7, name: "レジ締め(改)", note: "更新後のメモ", status: "mastered", priority: "low",
+    due_date: "2026-12-01", acquired_on: "2026-09-01", position: 0,
+  };
+
+  it("編集できる項目だけを、PATCH で送り、更新後のスキルを画面の形で返す", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(updated));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const skill = await updateSkill(7, input, "http://api.test");
+
+    expect(skill).toEqual({
+      id: 7, name: "レジ締め(改)", note: "更新後のメモ", status: "mastered", priority: "low",
+      dueDate: "2026-12-01", acquiredOn: "2026-09-01", position: 0,
+    });
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://api.test/api/v1/skills/7");
+    expect(options.method).toBe("PATCH");
+    expect(options.headers).toMatchObject({ "Content-Type": "application/json" });
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+    // 状態(status)・並び順(position)・習得日(acquired_on)は、編集では送らない
+    expect(JSON.parse(options.body as string)).toEqual({
+      name: "レジ締め(改)", note: "更新後のメモ", priority: "low", due_date: "2026-12-01",
+    });
+  });
+
+  it("空にしたポイント・考察と期限は、null で送る(サーバー側で消える)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ ...updated, note: null, due_date: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateSkill(7, { ...input, note: "", dueDate: "" }, "http://api.test");
+
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body).toMatchObject({ note: null, due_date: null });
+  });
+
+  it("場所を指定しなければ、環境変数 NEXT_PUBLIC_API_URL を使う", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://from-env.test");
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(updated));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await updateSkill(7, input);
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://from-env.test/api/v1/skills/7");
+  });
+
+  it("入力が正しくない(422)、存在しない(404)ときは、ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { name: ["スキル名を入力してください"] } }, 422)));
+    const e422 = await updateSkill(7, input, "http://api.test").catch((e: unknown) => e);
+    expect(e422).toBeInstanceOf(ApiError);
+    expect(e422).toMatchObject({ status: 422, fieldErrors: { name: ["スキル名を入力してください"] } });
+
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404)));
+    const e404 = await updateSkill(7, input, "http://api.test").catch((e: unknown) => e);
+    expect(e404).toMatchObject({ status: 404, fieldErrors: { base: ["指定されたスキルが見つかりません。"] } });
+  });
+
+  it("接続できなかったときは、もとの例外がそのまま出る", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+
+    await expect(updateSkill(7, input, "http://api.test")).rejects.toThrow("fetch failed");
+  });
+});
+
+describe("deleteSkill(スキルの削除)", () => {
+  it("DELETE を送る。成功(204。中身なし)したら、何も返さない", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await deleteSkill(7, "http://api.test");
+
+    expect(result).toBeUndefined();
+    const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("http://api.test/api/v1/skills/7");
+    expect(options.method).toBe("DELETE");
+    expect(options.body).toBeUndefined();
+    expect(options.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("場所を指定しなければ、環境変数 NEXT_PUBLIC_API_URL を使う", async () => {
+    vi.stubEnv("NEXT_PUBLIC_API_URL", "http://from-env.test");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await deleteSkill(7);
+
+    expect(fetchMock.mock.calls[0][0]).toBe("http://from-env.test/api/v1/skills/7");
+  });
+
+  it("存在しない(404)ときは、ApiError を投げる(すでに削除したスキルを、もう一度削除した場合も)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["指定されたスキルが見つかりません。"] } }, 404)));
+
+    const error = await deleteSkill(7, "http://api.test").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).toMatchObject({ status: 404 });
+  });
+
+  it("接続できなかった・時間切れのときは、もとの例外がそのまま出る", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
+    await expect(deleteSkill(7, "http://api.test")).rejects.toThrow("fetch failed");
+
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
+    await expect(deleteSkill(7, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
   });
 });

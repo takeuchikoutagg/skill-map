@@ -133,3 +133,43 @@ export async function createSkill(
   }
   return toSkill((await response.json()) as ApiSkill);
 }
+
+// PATCH /api/v1/skills/:id: スキルを編集する。送るのは、編集できる項目(スキル名・ポイント・優先度・期限)だけ。
+// 状態・並び順・習得日は、編集では変えられないので、送らない(状態と並び順は移動で、習得日はサーバーが自動で決める)。
+// 成功したら、更新後のスキルを返す。入力が正しくない(422)、存在しない(404)ときなどは、ApiError を投げる。
+export async function updateSkill(
+  id: number,
+  input: SkillInput,
+  baseUrl: string = browserApiUrl(),
+): Promise<Skill> {
+  const response = await fetch(`${baseUrl}/api/v1/skills/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      name: input.name,
+      note: input.note === "" ? null : input.note, // 空にすると、ポイント・考察を消す(null)
+      priority: input.priority,
+      due_date: input.dueDate === "" ? null : input.dueDate, // 空にすると、期限を消す(null)
+    }),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+  return toSkill((await response.json()) as ApiSkill);
+}
+
+// DELETE /api/v1/skills/:id: スキルを削除する。成功したら(204。中身なし)、何も返さない。
+// サーバーは、削除したあとに、同じ列の並び順を詰める。存在しない(404)ときなどは、ApiError を投げる。
+export async function deleteSkill(id: number, baseUrl: string = browserApiUrl()): Promise<void> {
+  const response = await fetch(`${baseUrl}/api/v1/skills/${id}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    throw await parseApiError(response);
+  }
+}

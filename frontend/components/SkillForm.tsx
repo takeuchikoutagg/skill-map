@@ -1,73 +1,55 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from "react";
+import { useRef, useState, type FormEvent, type RefObject } from "react";
+import { Modal } from "@/components/Modal";
 import { validateSkillInput, type SkillInput } from "@/lib/board";
 import { toFormErrors, type SkillFormErrors } from "@/lib/skill-form";
 import { NAME_MAX, NOTE_MAX, PRIORITIES, PRIORITY_LABELS } from "@/lib/types";
 
 type Props = {
   open: boolean; // 開いているか
-  heading: string; // 見出し。例: 「スキルを追加(未習得)」
+  heading: string; // 見出し。例: 「スキルを追加(未習得)」「スキルを編集」
+  initial?: SkillInput; // 最初に入れておく値(編集のとき。追加のときは、空の状態から)
+  readonlyAcquiredOn?: string; // 習得日(表示のみ。編集できない)。習得済みのスキルの編集のときだけ、渡す
   onSubmit: (input: SkillInput) => Promise<void>; // 保存する。失敗したら、例外を投げる(フォームに表示する)
   onCancel: () => void; // 閉じる(キャンセル、Esc、背景のクリック)
 };
 
-// <dialog> を開く・閉じる。テストで使う jsdom には、showModal / close がないので、その場合は open 属性で代用する
-function openDialog(dialog: HTMLDialogElement) {
-  if (typeof dialog.showModal === "function") dialog.showModal();
-  else dialog.setAttribute("open", "");
-}
+const EMPTY_INPUT: SkillInput = { name: "", note: "", priority: "medium", dueDate: "" }; // 追加のときの、最初の値(優先度は「中」)
 
-function closeDialog(dialog: HTMLDialogElement) {
-  if (typeof dialog.close === "function") dialog.close();
-  else dialog.removeAttribute("open");
-}
-
-// スキルの入力フォーム(ダイアログ)。docs/03-画面一覧.md の「S-02 スキル追加・編集フォーム」。
-// ダイアログの箱は、いつも画面に置いておき、開閉だけを切り替える(閉じるときに、押したボタンへフォーカスが戻る)。
-// 入力の中身は、開くたびに、空の状態から始める(FormBody を、開くたびに作り直す)。
-export function SkillForm({ open, heading, onSubmit, onCancel }: Props) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+// スキルの入力フォーム(ダイアログ)。追加と編集で、共用する。docs/03-画面一覧.md の「S-02 スキル追加・編集フォーム」。
+// ダイアログの開閉の仕組みは Modal。入力の中身は、開くたびに、最初の値から始める(FormBody を、開くたびに作り直す)。
+export function SkillForm({ open, heading, initial, readonlyAcquiredOn, onSubmit, onCancel }: Props) {
   const savingRef = useRef(false); // 保存中か(保存中は、閉じられない)
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) openDialog(dialog);
-    if (!open && dialog.open) closeDialog(dialog);
-  }, [open]);
-
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby="skill-form-title"
-      // Esc キー。ブラウザの標準の閉じ方は使わず、こちらで閉じる(保存中は、閉じない)
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!savingRef.current) onCancel();
-      }}
-      // ダイアログの外側(暗い背景)のクリック
-      onClick={(event: MouseEvent<HTMLDialogElement>) => {
-        if (event.target === event.currentTarget && !savingRef.current) onCancel();
-      }}
-    >
-      {open && <FormBody heading={heading} savingRef={savingRef} onSubmit={onSubmit} onCancel={onCancel} />}
-    </dialog>
+    <Modal open={open} labelledBy="skill-form-title" busyRef={savingRef} onCancel={onCancel}>
+      <FormBody
+        heading={heading}
+        initial={initial ?? EMPTY_INPUT}
+        readonlyAcquiredOn={readonlyAcquiredOn}
+        savingRef={savingRef}
+        onSubmit={onSubmit}
+        onCancel={onCancel}
+      />
+    </Modal>
   );
 }
 
 type FormBodyProps = {
   heading: string;
-  savingRef: React.RefObject<boolean>;
+  initial: SkillInput;
+  readonlyAcquiredOn?: string;
+  savingRef: RefObject<boolean>;
   onSubmit: (input: SkillInput) => Promise<void>;
   onCancel: () => void;
 };
 
-function FormBody({ heading, savingRef, onSubmit, onCancel }: FormBodyProps) {
-  const [name, setName] = useState("");
-  const [priority, setPriority] = useState("medium"); // 初期値は「中」
-  const [dueDate, setDueDate] = useState("");
-  const [note, setNote] = useState("");
+function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, onCancel }: FormBodyProps) {
+  const [name, setName] = useState(initial.name);
+  const [priority, setPriority] = useState(initial.priority);
+  const [dueDate, setDueDate] = useState(initial.dueDate);
+  const [note, setNote] = useState(initial.note);
   const [errors, setErrors] = useState<SkillFormErrors>({});
   const [saving, setSaving] = useState(false);
 
@@ -178,6 +160,11 @@ function FormBody({ heading, savingRef, onSubmit, onCancel }: FormBodyProps) {
           {errors.note}
         </p>
       </div>
+
+      {/* 習得日は、習得済みのスキルの編集のときだけ、表示のみで出す(編集はできない。サーバーが自動で記録する) */}
+      {readonlyAcquiredOn !== undefined && (
+        <p className="readonly">習得日: {readonlyAcquiredOn}(自動で記録されるため、編集できません)</p>
+      )}
 
       <div className="actions">
         <button type="button" className="btn" disabled={saving} onClick={onCancel}>
