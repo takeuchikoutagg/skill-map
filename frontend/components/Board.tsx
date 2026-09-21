@@ -13,7 +13,7 @@ import {
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Column } from "@/components/Column";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SkillCard } from "@/components/SkillCard";
@@ -55,6 +55,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const [notice, setNotice] = useState<Notice | null>(null); // 画面の上に出す、お知らせ
   const [busy, setBusy] = useState(false); // 移動・並べ替えの通信中か(通信中は、次のドラッグと並べ替えを受け付けない)
   const [sortingStatus, setSortingStatus] = useState<Status | null>(null); // 並べ替えの通信中の列(ボタンの表示用)
+  const focusAfterRender = useRef<Status | null>(null); // 次の描画のあとに、フォーカスを移す列(削除のあと)
   const sortingRef = useRef(false); // 並べ替えの通信中か(同じ瞬間の、2回目のクリックも防ぐため、画面の更新を待たずに読める形で持つ)
 
   // ドラッグ中の状態。ドラッグしていないときは、どちらも null
@@ -73,6 +74,15 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const columns = dragItems ? columnsFromItems(skills, dragItems) : groupByStatus(skills);
   const activeSkill = activeId === null ? null : (skills.find((skill) => skill.id === activeId) ?? null);
   const dropStatus = dragItems && activeId !== null ? findStatus(dragItems, activeId) : null; // 置かれる列(枠を強調する)
+
+  // 削除のあと、その列の見出しにフォーカスを移す(キーボードの人が、ページの先頭に戻されないように)。
+  // ダイアログが閉じて、フォーカスが戻ろうとするのは、もう消えたボタン。その動きより、あとで実行する必要がある(この部品の描画のあと)
+  useEffect(() => {
+    const status = focusAfterRender.current;
+    if (status === null) return;
+    focusAfterRender.current = null;
+    document.getElementById(`list-${status}`)?.focus();
+  });
 
   function updateDragItems(next: ColumnItems | null) {
     dragItemsRef.current = next;
@@ -125,6 +135,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   async function handleDelete(target: Skill) {
     try {
       await deleteSkill(target.id);
+      focusAfterRender.current = target.status; // 消えたカードのボタンから、フォーカスが行き場をなくさないように、その列の見出しへ移す
       setSkills((current) => removeSkill(current, target.id));
       setNotice(null);
       setDeleting(null);

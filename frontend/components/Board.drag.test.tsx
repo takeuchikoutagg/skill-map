@@ -78,8 +78,8 @@ describe("Board: ドラッグ&ドロップ", () => {
       // 通信の返事を待たずに、画面は、もう変わっている(先に更新)
       expect(cardNames("習得中")).toEqual(["発注書の確認", "請求書の発行", "月次レポートの作成"]);
       expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
-      expect(count("習得中")).toBe("3");
-      expect(count("未習得")).toBe("2");
+      expect(count("習得中")).toBe("3件");
+      expect(count("未習得")).toBe("2件");
       // API には、移動先の状態と位置(移動したあとの位置)を送る
       const [url, options] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toBe("http://localhost:3001/api/v1/skills/2/move");
@@ -277,15 +277,15 @@ describe("Board: ドラッグ&ドロップ", () => {
       hover(2, 5);
 
       expect(cardNames("習得中")).toContain("発注書の確認");
-      expect(count("習得中")).toBe("3");
-      expect(count("未習得")).toBe("2");
+      expect(count("習得中")).toBe("3件");
+      expect(count("未習得")).toBe("2件");
       expect(column("習得中")).toHaveClass("drop-target");
       expect(column("未習得")).not.toHaveClass("drop-target");
 
       cancel();
 
       expect(column("習得中")).not.toHaveClass("drop-target");
-      expect(count("未習得")).toBe("3");
+      expect(count("未習得")).toBe("3件");
     });
   });
 
