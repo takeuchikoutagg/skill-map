@@ -38,6 +38,8 @@ describe("トップページ(スキルボード)", () => {
     await Home();
 
     expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/skills", {
+      method: "GET",
+      headers: { Accept: "application/json" },
       cache: "no-store",
       signal: expect.any(AbortSignal),
     });
@@ -67,6 +69,18 @@ describe("トップページ(スキルボード)", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("スキルを取得できませんでした");
     expect(screen.getByRole("alert")).toHaveTextContent("に接続できませんでした");
     expect(screen.queryByRole("region")).not.toBeInTheDocument();
+  });
+
+  it("取得に失敗しても、画面には、サーバー用の API の場所(内部の URL)を出さない。原因の詳細は、サーバーのログに残す", async () => {
+    vi.stubEnv("API_URL", "http://backend:3001"); // 本番の、内部のホスト名を想定
+    stubFetch(new TypeError("fetch failed"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(await Home());
+
+    expect(screen.getByRole("alert").textContent).not.toContain("backend:3001");
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining("http://backend:3001"), expect.anything());
+    consoleError.mockRestore();
   });
 
   it("API が、時間内に返事をしないときも、エラーを表示する", async () => {

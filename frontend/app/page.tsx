@@ -18,7 +18,9 @@ export default async function Home() {
   try {
     skills = await fetchSkills();
   } catch (error) {
-    return <LoadError message={loadErrorMessage(error, serverApiUrl())} />;
+    // 原因の詳細(API の場所を含む)は、サーバーのログにだけ残す。画面には、URL を出さない(loadErrorMessage)
+    console.error(`スキルの取得に失敗しました(${serverApiUrl()}):`, error);
+    return <LoadError message={loadErrorMessage(error)} />;
   }
 
   return <Board initialSkills={skills} today={today} />;

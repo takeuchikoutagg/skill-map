@@ -181,8 +181,6 @@ describe("Board(スキルボードの表示)", () => {
 });
 
 describe("LoadError(取得に失敗したときの表示)", () => {
-  const API_URL = "http://localhost:3001";
-
   it("渡された文章と、確かめることを、警告として表示する", () => {
     render(<LoadError message="テスト用の文章" />);
 
@@ -201,29 +199,36 @@ describe("LoadError(取得に失敗したときの表示)", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
+  it("main のランドマークが残る(role=\"alert\" は、main を上書きしない)", () => {
+    render(<LoadError message="テスト用の文章" />);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByRole("alert")).toBeInTheDocument();
+  });
+
   describe("loadErrorMessage(原因に合わせた文章)", () => {
     it("API がエラーを返したときは、ステータスとメッセージ", () => {
-      const message = loadErrorMessage(new ApiError(500, { base: ["サーバーで問題が起きました。"] }), API_URL);
+      const message = loadErrorMessage(new ApiError(500, { base: ["サーバーで問題が起きました。"] }));
 
       expect(message).toBe("API がエラーを返しました(HTTP 500)。サーバーで問題が起きました。");
     });
 
     it("メッセージがないエラーでも、ステータスを伝える", () => {
-      expect(loadErrorMessage(new ApiError(502, {}), API_URL)).toBe("API がエラーを返しました(HTTP 502)。");
+      expect(loadErrorMessage(new ApiError(502, {}))).toBe("API がエラーを返しました(HTTP 502)。");
     });
 
-    it("API に接続できなかったときは、API の場所を伝える", () => {
-      expect(loadErrorMessage(new TypeError("fetch failed"), API_URL)).toBe("API(http://localhost:3001)に接続できませんでした。");
+    it("API に接続できなかったときは、そう伝える(内部の URL は、画面に出さない)", () => {
+      expect(loadErrorMessage(new TypeError("fetch failed"))).toBe("API に接続できませんでした。");
     });
 
     it("API が、時間内に返事をしなかったときは、そう伝える", () => {
       const timeout = new DOMException("The operation timed out.", "TimeoutError");
 
-      expect(loadErrorMessage(timeout, API_URL)).toBe("API(http://localhost:3001)から、時間内に返事がありませんでした。");
+      expect(loadErrorMessage(timeout)).toBe("API から、時間内に返事がありませんでした。");
     });
 
     it("原因が分からない例外(Error でないもの)でも、接続できなかったと伝える", () => {
-      expect(loadErrorMessage("なにか", API_URL)).toBe("API(http://localhost:3001)に接続できませんでした。");
+      expect(loadErrorMessage("なにか")).toBe("API に接続できませんでした。");
     });
   });
 });
