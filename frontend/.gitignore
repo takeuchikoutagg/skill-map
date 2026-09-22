@@ -32,8 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
-# 見本(.env.example)は、Git に入れる(実際の値を入れる .env.local などは、入れない)
-!.env.example
+# 見本(.env.example、.env.production.example など)は、Git に入れる(実際の値を入れる .env.local などは、入れない)
+!.env*.example
 
 # vercel
 .vercel
