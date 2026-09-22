@@ -1,0 +1,20 @@
+# state ファイル(ローカル管理。秘密の情報を含むことがある。docs/07-デプロイガイド.md の 1.1.1)
+*.tfstate
+*.tfstate.*
+
+# Terraform の作業用ディレクトリ(ダウンロードした、プロバイダーのプラグインなど)
+.terraform/
+
+# 秘密の値を書く、実際の変数ファイル(見本の *.example だけを、Git に入れる)
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# plan の出力を、ファイルに保存したとき(秘密の値が、平文で入ることがある)
+*.tfplan
+
+# クラッシュのログ
+crash.log
+crash.*.log
+
+# .terraform.lock.hcl は、Git に入れる(プロバイダーのバージョンを固定するため。除外しない)
