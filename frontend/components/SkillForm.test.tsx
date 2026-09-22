@@ -125,6 +125,42 @@ describe("SkillForm(追加フォーム)", () => {
       expect(screen.queryByText("スキル名を入力してください。")).not.toBeInTheDocument();
       expect(onSubmit).toHaveBeenCalledTimes(1);
     });
+
+    it("検証に失敗すると、最初の不正な項目(スキル名)に、フォーカスが移る", async () => {
+      const user = userEvent.setup();
+      renderForm();
+      saveButton().focus(); // いったん、スキル名の欄から離れる
+
+      await user.click(saveButton());
+
+      expect(nameInput()).toHaveFocus();
+    });
+
+    it("スキル名は正しく、ほかの項目だけが不正なときは、その項目に、フォーカスが移る", async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await user.type(nameInput(), "レジ締め");
+      fireEvent.change(screen.getByLabelText("ポイント・考察"), { target: { value: "あ".repeat(5001) } });
+
+      await user.click(saveButton());
+
+      expect(screen.getByLabelText("ポイント・考察")).toHaveFocus();
+    });
+
+    it("不正な項目を直しはじめると、保存し直す前でも、その項目のエラーだけ消える", async () => {
+      const user = userEvent.setup();
+      renderForm();
+      fireEvent.change(screen.getByLabelText("ポイント・考察"), { target: { value: "あ".repeat(5001) } });
+      await user.click(saveButton()); // スキル名(空)と、ポイント・考察(5001文字)の、両方が不正
+      expect(screen.getByText("スキル名を入力してください。")).toBeInTheDocument();
+      expect(screen.getByText("ポイント・考察は5,000文字以内で入力してください。")).toBeInTheDocument();
+
+      await user.type(nameInput(), "レ");
+
+      expect(screen.queryByText("スキル名を入力してください。")).not.toBeInTheDocument();
+      expect(nameInput()).not.toHaveAttribute("aria-invalid"); // 直した項目は、不正の表示も消える
+      expect(screen.getByText("ポイント・考察は5,000文字以内で入力してください。")).toBeInTheDocument(); // 直していない項目は、残る
+    });
   });
 
   describe("保存", () => {
@@ -202,6 +238,19 @@ describe("SkillForm(追加フォーム)", () => {
       expect(nameInput()).toHaveAttribute("aria-invalid", "true");
       expect(nameInput()).toHaveValue("クレーム対応"); // 入力は、そのまま
       expect(saveButton()).toBeEnabled(); // 直して、もう一度、保存できる
+    });
+
+    it("422 で、複数の項目にエラーがあるときも、最初の項目(スキル名)に、フォーカスが移る", async () => {
+      const user = userEvent.setup();
+      const onSubmit = vi.fn().mockRejectedValue(
+        new ApiError(422, { name: ["スキル名は重複しています"], due_date: ["期限は不正な値です"] }),
+      );
+      renderForm({ onSubmit });
+      await user.type(nameInput(), "クレーム対応");
+
+      await user.click(saveButton());
+
+      await waitFor(() => expect(nameInput()).toHaveFocus());
     });
 
     it("項目に結びつかないエラーや、接続できないエラーは、フォームの上に出す", async () => {

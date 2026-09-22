@@ -2,9 +2,12 @@
 
 import { useRef, useState, type FormEvent, type RefObject } from "react";
 import { Modal } from "@/components/Modal";
-import { validateSkillInput, type SkillInput } from "@/lib/board";
+import { validateSkillInput, type SkillInput, type SkillInputErrors } from "@/lib/board";
 import { toFormErrors, type SkillFormErrors } from "@/lib/skill-form";
 import { NAME_MAX, NOTE_MAX, PRIORITIES, PRIORITY_LABELS } from "@/lib/types";
+
+// 画面に並んでいる順番。検証で複数の項目が引っかかったとき、いちばん上の項目に、フォーカスを移す
+const FIELD_ORDER: (keyof SkillInputErrors)[] = [ "name", "priority", "dueDate", "note" ];
 
 type Props = {
   open: boolean; // 開いているか
@@ -53,6 +56,30 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
   const [errors, setErrors] = useState<SkillFormErrors>({});
   const [saving, setSaving] = useState(false);
 
+  // 項目ごとの入力欄(検証に失敗したとき、最初の不正な項目に、フォーカスを移すため)
+  const nameRef = useRef<HTMLInputElement>(null);
+  const priorityRef = useRef<HTMLSelectElement>(null);
+  const dueDateRef = useRef<HTMLInputElement>(null);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const fieldRefs: Record<keyof SkillInputErrors, RefObject<HTMLElement | null>> = {
+    name: nameRef,
+    priority: priorityRef,
+    dueDate: dueDateRef,
+    note: noteRef,
+  };
+
+  // 画面の上から順に、最初にエラーのある項目へ、フォーカスを移す(キーボード・スクリーンリーダーの人が、
+  // 直すべき場所へ、すぐたどり着けるように。役割(role="alert")だけでは、そこへは移動しない)
+  function focusFirstInvalid(fieldErrors: SkillFormErrors) {
+    const field = FIELD_ORDER.find((name) => fieldErrors[name]);
+    if (field) fieldRefs[field].current?.focus();
+  }
+
+  // 項目を直しているとき、その項目のエラーだけを消す(保存し直すまで、直したあとも、赤いままにしない)
+  function clearFieldError(field: keyof SkillInputErrors) {
+    setErrors((current) => (current[field] ? { ...current, [field]: undefined } : current));
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (savingRef.current) return; // 二重送信を防ぐ(保存中に、もう一度押されても、何もしない)
@@ -61,6 +88,7 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
     const clientErrors = validateSkillInput(input); // まず、画面側で入力をチェックする(通信しない)
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
+      focusFirstInvalid(clientErrors);
       return;
     }
 
@@ -70,7 +98,9 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
     try {
       await onSubmit(input); // 成功したら、親がフォームを閉じる
     } catch (error) {
-      setErrors(toFormErrors(error)); // サーバーのエラー(422 など)を、項目の下に表示する
+      const formErrors = toFormErrors(error); // サーバーのエラー(422 など)を、項目の下に表示する
+      setErrors(formErrors);
+      focusFirstInvalid(formErrors);
     } finally {
       savingRef.current = false;
       setSaving(false);
@@ -92,6 +122,7 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
           スキル名 <em>必須</em>
         </label>
         <input
+          ref={nameRef}
           id="skill-name"
           type="text"
           value={name}
@@ -101,7 +132,10 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
           placeholder="例: レジ締め"
           aria-invalid={errors.name ? true : undefined}
           aria-describedby="skill-name-error"
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            clearFieldError("name");
+          }}
         />
         <p className="error" id="skill-name-error" role="alert">
           {errors.name}
@@ -112,11 +146,15 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
         <div className="field">
           <label htmlFor="skill-priority">優先度</label>
           <select
+            ref={priorityRef}
             id="skill-priority"
             value={priority}
             aria-invalid={errors.priority ? true : undefined}
             aria-describedby="skill-priority-error"
-            onChange={(event) => setPriority(event.target.value)}
+            onChange={(event) => {
+              setPriority(event.target.value);
+              clearFieldError("priority");
+            }}
           >
             {PRIORITIES.map((value) => (
               <option key={value} value={value}>
@@ -132,12 +170,16 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
         <div className="field">
           <label htmlFor="skill-due-date">期限</label>
           <input
+            ref={dueDateRef}
             id="skill-due-date"
             type="date"
             value={dueDate}
             aria-invalid={errors.dueDate ? true : undefined}
             aria-describedby="skill-due-date-error"
-            onChange={(event) => setDueDate(event.target.value)}
+            onChange={(event) => {
+              setDueDate(event.target.value);
+              clearFieldError("dueDate");
+            }}
           />
           <p className="error" id="skill-due-date-error" role="alert">
             {errors.dueDate}
@@ -148,13 +190,17 @@ function FormBody({ heading, initial, readonlyAcquiredOn, savingRef, onSubmit, o
       <div className="field">
         <label htmlFor="skill-note">ポイント・考察</label>
         <textarea
+          ref={noteRef}
           id="skill-note"
           rows={4}
           value={note}
           maxLength={NOTE_MAX}
           aria-invalid={errors.note ? true : undefined}
           aria-describedby="skill-note-error"
-          onChange={(event) => setNote(event.target.value)}
+          onChange={(event) => {
+            setNote(event.target.value);
+            clearFieldError("note");
+          }}
         />
         <p className="error" id="skill-note-error" role="alert">
           {errors.note}
