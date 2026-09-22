@@ -27,7 +27,7 @@ gem "rails-i18n", "~> 8.0"
 
 # json 3 系は、Rails 8.1(ActiveSupport)がまだ対応しておらず、送られてきた JSON を読めない
 # ("wrong number of arguments (given 2, expected 1)")。対応するまで 2 系に固定する。
-gem "json", "~> 2.21"
+gem "json", "~> 3.0"
 
 group :development, :test do
   # テスト(RSpec)
