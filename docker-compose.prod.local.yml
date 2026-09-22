@@ -1,0 +1,30 @@
+# ローカル確認専用の重ね合わせ。RDS の代わりに、MySQL のコンテナ(db)を使って、
+# 本番と同じ構成(Nginx + Next.js + Rails)を、ローカルの Mac で確認する。
+# 本番(EC2)では、このファイルを使わない。コードを直したときや、EC2 にデプロイする前の
+# 再確認に使う。db は確認用なので、データが消えてもよい(down -v も可。docs/07 P1)。
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml up --build
+name: skill-map
+
+services:
+  db:
+    image: mysql:8.4
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${LOCAL_DB_PASSWORD:-password}
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  web:
+    environment:
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${LOCAL_DB_PASSWORD:-password}
+    depends_on:
+      db:
+        condition: service_healthy

@@ -1,0 +1,35 @@
+# 本番用の構成(EC2 の上で動かす想定)。Nginx が、1 つの入口(80番)で受けて、
+# Rails(web)と Next.js(frontend)に振り分ける(nginx/nginx.conf)。
+# DB は、RDS を使うため、db サービスは含めない。
+#
+# ローカルの Mac で、RDS の代わりに MySQL のコンテナを使って、本番と同じ構成を
+# 確認したいときは、docker-compose.prod.local.yml を重ねる(docs/07-デプロイガイド.md P1)。
+#   docker compose -f docker-compose.prod.yml -f docker-compose.prod.local.yml up --build
+name: skill-map
+
+services:
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - web
+      - frontend
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      # NEXT_PUBLIC_API_URL は、ここでは指定しない(既定の空のままでよい)。
+      # Nginx が同じオリジンで振り分けるため、ブラウザは相対パスで API を呼ぶ(frontend/Dockerfile を参照)
+    env_file:
+      - ./frontend/.env.production
+    depends_on:
+      - web
+    restart: unless-stopped
+
+  web:
+    build: ./backend
+    env_file:
+      - ./backend/.env.production
+    restart: unless-stopped
