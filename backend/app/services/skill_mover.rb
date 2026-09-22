@@ -25,8 +25,8 @@ class SkillMover
   def call
     return false unless valid_request?
 
-    Skill.transaction do
-      lock_skills
+    BoardLock.synchronize do
+      skill.reload # ロックを取ったあとの、最新の状態を読み直す
       move
     end
     true
@@ -48,13 +48,6 @@ class SkillMover
     skill.errors.add(:position, :invalid_position) if position.nil?
 
     skill.errors.empty?
-  end
-
-  # スキルは多くても数百件なので、すべての行をロックして、同時に2つの移動が起きても、順番に処理する。
-  # (id の順にロックするので、お互いを待ち合うことはない。)
-  def lock_skills
-    Skill.order(:id).lock.pluck(:id)
-    skill.reload   # ロックを取ったあとの、最新の状態を読み直す
   end
 
   def move
