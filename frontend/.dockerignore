@@ -1,0 +1,17 @@
+# 本番用のイメージ(Dockerfile)を作るときに、送らないもの(ビルドに要らない・秘密になりうるもの)
+node_modules
+.next
+.git
+*.tsbuildinfo
+
+# テスト・検査(本番イメージには、要らない)
+**/*.test.ts
+**/*.test.tsx
+vitest.config.mts
+vitest.setup.ts
+coverage
+
+# 環境変数(実際の値。見本の .env.*.example は、イメージに入れてもよいので、除外しない)
+.env
+.env.*
+!.env.*.example
