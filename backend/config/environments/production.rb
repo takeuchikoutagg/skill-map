@@ -15,6 +15,12 @@ Rails.application.configure do
   # Cache assets for far-future expiry since they are all digest stamped.
   config.public_file_server.headers = { "cache-control" => "public, max-age=#{1.year.to_i}" }
 
+  # セキュリティヘッダー(X-Frame-Options、X-Content-Type-Options など)は、Rails の既定では付けない。
+  # 前段の Nginx が、すべての応答に付けるため(nginx/nginx.conf、docs/08-品質チェック結果.md の M11)。
+  # 付ける場所を1つにしないと、両方が付いて、値が食い違うことがある(実際に、Rails の既定の
+  # X-Frame-Options: SAMEORIGIN と、Nginx の X-Frame-Options: DENY が、両方付くことを確認した)。
+  config.action_dispatch.default_headers.clear
+
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
