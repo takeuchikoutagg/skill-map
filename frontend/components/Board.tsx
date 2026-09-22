@@ -13,7 +13,7 @@ import {
   type UniqueIdentifier,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Column } from "@/components/Column";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SkillCard } from "@/components/SkillCard";
@@ -83,8 +83,16 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
     // キーボード: Space でつかみ、矢印で動かし、Space で置く。Esc でやめる
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
-  // ドラッグ中は、見た目用の並びで表示する。そうでなければ、スキルの一覧から作る
-  const columns = dragItems ? columnsFromItems(skills, dragItems) : groupByStatus(skills);
+  // ドラッグ中は、見た目用の並びで表示する。そうでなければ、スキルの一覧から作る。
+  // skills と dragItems が変わらない限り、同じ結果(同じ配列)を使い回す(useMemo)。
+  // Board は、お知らせやフォームの開閉など、並びに関係ない理由でも、描画し直されることがある。
+  // そのたびに、この計算をやり直して、列ごとに新しい配列を作ると、@dnd-kit(SortableContext)は「並びが変わった」と誤解して、
+  // 位置を測り直す。ドラッグ中に、これが繰り返されると、測り直し → 再描画 → 新しい配列 …と際限なく続き、
+  // 「Maximum update depth exceeded」で画面が壊れることがあった(習得中 → 習得済みのドラッグで、実際に起きた不具合)。
+  const columns = useMemo(
+    () => (dragItems ? columnsFromItems(skills, dragItems) : groupByStatus(skills)),
+    [skills, dragItems],
+  );
   const activeSkill = activeId === null ? null : (skills.find((skill) => skill.id === activeId) ?? null);
   const dropStatus = dragItems && activeId !== null ? findStatus(dragItems, activeId) : null; // 置かれる列(枠を強調する)
 
