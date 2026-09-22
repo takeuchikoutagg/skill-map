@@ -1,7 +1,8 @@
 import type { DndContextProps } from "@dnd-kit/core";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Board } from "@/components/Board";
+import { moveSkill } from "@/lib/board";
 import { columnDropId } from "@/lib/drag";
 import { makeSkill, sampleSkills, toApiSkill } from "@/lib/fixtures";
 
@@ -367,7 +368,7 @@ describe("Board: ドラッグ&ドロップ", () => {
   });
 
   describe("失敗したとき", () => {
-    it("API に接続できなかったら、元の位置に戻して、エラーのお知らせを出す", async () => {
+    it("API に接続できず、最新の一覧も取れないときは、元の位置に戻して表示し、再読み込みして確かめるよう、案内する", async () => {
       vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
       render(<Board initialSkills={sampleSkills()} today={TODAY} />);
 
@@ -376,7 +377,8 @@ describe("Board: ドラッグ&ドロップ", () => {
       drop(2, 2);
 
       const notice = await screen.findByRole("alert", { name: "お知らせ" });
-      expect(notice).toHaveTextContent("「発注書の確認」を移動できませんでした。元の位置に戻しました。");
+      expect(notice).toHaveTextContent("「発注書の確認」の移動の結果を確認できませんでした。元の位置に戻して表示しています");
+      expect(notice).toHaveTextContent("サーバーでは移動できている可能性があります。ページを再読み込みして、確かめてください。");
       expect(notice).toHaveTextContent("API に接続できませんでした");
       expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
       expect(cardNames("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
@@ -415,8 +417,9 @@ describe("Board: ドラッグ&ドロップ", () => {
     it("失敗したあとも、もう一度、ドラッグして移動できる", async () => {
       const fetchMock = vi
         .fn()
-        .mockRejectedValueOnce(new TypeError("fetch failed"))
-        .mockResolvedValueOnce(movedResponse(2, { status: "learning", position: 0 }));
+        .mockRejectedValueOnce(new TypeError("fetch failed")) // 1回目の移動
+        .mockRejectedValueOnce(new TypeError("fetch failed")) // 結果が分からないので、一覧を取り直す(これも失敗)
+        .mockResolvedValueOnce(movedResponse(2, { status: "learning", position: 0 })); // 2回目の移動
       vi.stubGlobal("fetch", fetchMock);
       render(<Board initialSkills={sampleSkills()} today={TODAY} />);
       start(2);
@@ -430,7 +433,7 @@ describe("Board: ドラッグ&ドロップ", () => {
 
       await waitFor(() => expect(screen.queryByRole("alert", { name: "お知らせ" })).not.toBeInTheDocument()); // 新しい移動で、お知らせは消える
       await waitFor(() => expect(cardNames("習得中")).toContain("発注書の確認"));
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it("別の場所で、すでに削除されていた(404)ときは、最新を取り直して、お知らせを出す", async () => {
@@ -450,6 +453,86 @@ describe("Board: ドラッグ&ドロップ", () => {
       expect(notice).toHaveTextContent("「発注書の確認」は、すでに削除されていました。最新の状態に更新しました。");
       expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]); // 最新の一覧
       expect(cardNames("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
+    });
+
+    // 品質チェックの H3: 時間切れ・接続断のときは、サーバーで移動できているかもしれない。「元に戻した」と断定してはいけない
+    describe("結果が分からない失敗(時間切れ・接続断・500)", () => {
+      const timeout = () => new DOMException("The operation timed out.", "TimeoutError");
+      const serverListAfterMove = () =>
+        jsonResponse(moveSkill(sampleSkills(), 2, "learning", 0, TODAY).map(toApiSkill)); // サーバーでは、移動できていた
+
+      it("時間切れのとき、サーバーの最新の一覧を取り直して、それに合わせる(サーバーでは移動できていた場合、移動した状態になる)", async () => {
+        const fetchMock = vi.fn().mockRejectedValueOnce(timeout()).mockResolvedValueOnce(serverListAfterMove());
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4);
+        drop(2, 2);
+
+        const notice = await screen.findByRole("alert", { name: "お知らせ" });
+        expect(notice).toHaveTextContent("「発注書の確認」の移動の結果を確認できませんでした。サーバーの最新の状態に更新しました。");
+        expect(notice).toHaveTextContent("時間内に返事がありませんでした");
+        expect(notice).not.toHaveTextContent("元の位置に戻しました");
+        expect(cardNames("習得中")).toEqual(["発注書の確認", "請求書の発行", "月次レポートの作成"]); // サーバーの状態
+        expect(cardNames("未習得")).toEqual(["クレーム対応", "受発注システムの操作"]);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect((fetchMock.mock.calls[1] as [string, RequestInit])[0]).toBe("http://localhost:3001/api/v1/skills"); // 取り直しは、一覧の取得
+      });
+
+      it("時間切れのとき、サーバーでは、移動できていなかった場合は、元の位置の一覧になる(取り直した結果を、そのまま採用する)", async () => {
+        const fetchMock = vi.fn().mockRejectedValueOnce(timeout()).mockResolvedValueOnce(jsonResponse(sampleSkills().map(toApiSkill)));
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4);
+        drop(2, 2);
+
+        await screen.findByRole("alert", { name: "お知らせ" });
+        expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+        expect(cardNames("習得中")).toEqual(["請求書の発行", "月次レポートの作成"]);
+      });
+
+      it("サーバーのエラー(500)のときも、結果が分からないので、一覧を取り直す", async () => {
+        const fetchMock = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse({ errors: { base: ["サーバーで問題が起きました。"] } }, 500))
+          .mockResolvedValueOnce(serverListAfterMove());
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4);
+        drop(2, 2);
+
+        const notice = await screen.findByRole("alert", { name: "お知らせ" });
+        expect(notice).toHaveTextContent("サーバーの最新の状態に更新しました。");
+        expect(cardNames("習得中")).toContain("発注書の確認");
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe("サーバーが、はっきり断った失敗(4xx・503)", () => {
+      it.each([
+        ["入力が正しくない(422)", 422, { errors: { position: ["並び順は0以上の整数で指定してください"] } }, "並び順は0以上の整数で指定してください"],
+        ["リクエストの形が正しくない(400)", 400, { errors: { base: ["リクエストの形が正しくありません。"] } }, "リクエストの形が正しくありません。"],
+        ["ロック待ちで、処理されなかった(503)", 503, { errors: { base: ["サーバーが混み合っています。少し待ってから、もう一度お試しください。"] } }, "サーバーが混み合っています。"],
+      ])("%s: 何も変わっていないので、取り直さず、元の位置に戻す(通信は1回だけ)", async (_name, status, body, expected) => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse(body, status));
+        vi.stubGlobal("fetch", fetchMock);
+        render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+        start(2);
+        hover(2, 4);
+        drop(2, 2);
+
+        const notice = await screen.findByRole("alert", { name: "お知らせ" });
+        expect(notice).toHaveTextContent("「発注書の確認」を移動できませんでした。元の位置に戻しました。");
+        expect(notice).toHaveTextContent(expected);
+        expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]);
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+      });
     });
 
     it("404 で、最新を取り直せなかったときは、元に戻して、エラーを出す", async () => {
@@ -490,6 +573,28 @@ describe("Board: ドラッグ&ドロップ", () => {
 
       call.resolve(movedResponse(2, { status: "learning", position: 0 }));
       await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    });
+
+    // 品質チェックの H2: 通信中に、追加・編集・削除ができると、通信が失敗したとき、それらを、画面から巻き戻してしまう
+    it("通信中は、追加・編集・削除も、受け付けない(ボタンが押せず、カードのクリックで、編集が開かない)", async () => {
+      const call = pending();
+      const fetchMock = vi.fn().mockReturnValue(call.promise);
+      vi.stubGlobal("fetch", fetchMock);
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+      start(2);
+      hover(2, 4);
+      drop(2, 2); // 移動の通信中
+
+      for (const button of screen.getAllByRole("button", { name: "+ スキルを追加" })) expect(button).toBeDisabled();
+      for (const button of screen.getAllByRole("button", { name: /を削除$/ })) expect(button).toBeDisabled();
+      fireEvent.click(screen.getByRole("heading", { name: "クレーム対応" }).closest("article")!); // カードをクリック
+      fireEvent.click(within(column("未習得")).getByRole("button", { name: "クレーム対応" })); // スキル名をクリック
+      expect(document.querySelector("dialog[open]")).toBeNull(); // 編集のフォームは、開かない
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      call.resolve(movedResponse(2, { status: "learning", position: 0 }));
+      await waitFor(() => expect(within(column("未習得")).getByRole("button", { name: "+ スキルを追加" })).toBeEnabled());
+      for (const button of screen.getAllByRole("button", { name: /を削除$/ })) expect(button).toBeEnabled();
     });
 
     it("通信が終わると、カードは、またドラッグできる(ドラッグ不可の指定が、外れる)", async () => {

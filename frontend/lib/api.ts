@@ -65,6 +65,13 @@ export function browserApiUrl(): string {
   return (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "");
 }
 
+// サーバーが、その操作を、受け付けなかった(何も変わっていない)と分かる失敗か。
+//   はい: 4xx(入力が正しくない、存在しない、など)と、503(ロックを待ちきれず、処理されなかった)
+//   いいえ: 時間切れ、接続断、500 など。サーバーで、処理されたのかどうか、分からない(返事だけが、届かなかったのかもしれない)
+export function isRejectedByServer(error: unknown): boolean {
+  return error instanceof ApiError && ((error.status >= 400 && error.status < 500) || error.status === 503);
+}
+
 // エラーの返事({ "errors": { "name": ["…"] } })を読んで、ApiError にする。読めなければ、メッセージなしの ApiError
 export async function parseApiError(response: Response): Promise<ApiError> {
   try {

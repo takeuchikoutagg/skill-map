@@ -5,6 +5,7 @@ import {
   createSkill,
   deleteSkill,
   fetchSkills,
+  isRejectedByServer,
   parseApiError,
   requestMove,
   requestSort,
@@ -500,5 +501,22 @@ describe("requestSort(優先度順の並べ替え)", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     await expect(requestSort("unlearned", "http://api.test")).rejects.toThrow("fetch failed");
+  });
+});
+
+describe("isRejectedByServer(サーバーが、その操作を、受け付けなかったと分かる失敗か)", () => {
+  it.each([400, 404, 409, 422, 499, 503])("HTTP %i は、はい(何も変わっていない)", (status) => {
+    expect(isRejectedByServer(new ApiError(status, {}))).toBe(true);
+  });
+
+  it.each([500, 502, 504, 200, 301])("HTTP %i は、いいえ(処理されたかどうか、分からない)", (status) => {
+    expect(isRejectedByServer(new ApiError(status, {}))).toBe(false);
+  });
+
+  it("時間切れ・接続断・その他の例外は、いいえ(返事が届かなかっただけで、サーバーでは処理されたかもしれない)", () => {
+    expect(isRejectedByServer(new DOMException("The operation timed out.", "TimeoutError"))).toBe(false);
+    expect(isRejectedByServer(new TypeError("fetch failed"))).toBe(false);
+    expect(isRejectedByServer(null)).toBe(false);
+    expect(isRejectedByServer("なにか")).toBe(false);
   });
 });
