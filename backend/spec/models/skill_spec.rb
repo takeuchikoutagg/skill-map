@@ -119,6 +119,47 @@ RSpec.describe Skill, type: :model do
     it "存在しない日付は、エラーにする" do
       expect(build_skill(due_date: "2026-02-30")).not_to be_valid
     end
+
+    it "\"YYYY-MM-DD\" の形でない文字列は、日付として読めても、エラーにする" do
+      expect(build_skill(due_date: "2026/10/31")).not_to be_valid
+      expect(build_skill(due_date: "2026-2-3")).not_to be_valid
+      expect(build_skill(due_date: "2026-10-31T00:00:00Z")).not_to be_valid
+      expect(build_skill(due_date: "31-10-2026")).not_to be_valid
+    end
+
+    it "MySQL の DATE 型の範囲(西暦1000年〜9999年)の外は、エラーにする" do
+      expect(build_skill(due_date: "0999-12-31")).not_to be_valid
+      expect(build_skill(due_date: "10000-01-01")).not_to be_valid
+    end
+
+    it "範囲の両端(西暦1000年、9999年)は、保存できる" do
+      expect(build_skill(due_date: "1000-01-01")).to be_valid
+      expect(build_skill(due_date: "9999-12-31")).to be_valid
+    end
+
+    it "Date オブジェクトを、そのまま渡したときは(文字列の形は関係ないので)、保存できる" do
+      expect(build_skill(due_date: Date.new(2026, 10, 31))).to be_valid
+    end
+  end
+
+  describe "ポイント・考察(note)" do
+    it "空文字は、nil として保存する(docs/02-機能要件.md の「空で消せる」に合わせる)" do
+      skill = build_skill(note: "")
+
+      expect(skill.note).to be_nil
+    end
+
+    it "nil は、nil のまま" do
+      expect(build_skill(note: nil).note).to be_nil
+    end
+
+    it "中身があれば、そのまま保存する" do
+      expect(build_skill(note: "メモ").note).to eq("メモ")
+    end
+
+    it "空白だけの note も、nil にする(前後の空白を除くと、空になるため)" do
+      expect(build_skill(note: "   ").note).to be_nil
+    end
   end
 
   describe "習得日(acquired_on)のルール" do
