@@ -213,14 +213,32 @@ describe("Board: 優先度順の並べ替え", () => {
 
   describe("失敗したとき", () => {
     it.each([
-      ["サーバーのエラー(500)", () => vi.fn().mockResolvedValue(jsonResponse({}, 500)), "並べ替えできませんでした"],
-      ["接続できない", () => vi.fn().mockRejectedValue(new TypeError("fetch failed")), "API に接続できませんでした"],
       [
         "習得済みなどで、422",
         () => vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["習得済みの列は、優先度順に並べ替えできません。"] } }, 422)),
+        "「未習得」を優先度順に並べ替えできませんでした。",
         "習得済みの列は、優先度順に並べ替えできません。",
       ],
-    ])("%s: 画面はそのままで、エラーを出し、もう一度押せる", async (_name, makeFetch, expected) => {
+      [
+        "ロック待ちで、処理されなかった(503)",
+        () => vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["サーバーが混み合っています。"] } }, 503)),
+        "「未習得」を優先度順に並べ替えできませんでした。",
+        "サーバーが混み合っています。",
+      ],
+      // 結果が分からない失敗(500・接続断)は、サーバーでは、並べ替えできているかもしれない。取り直しも失敗すれば、再読み込みで確かめるよう案内する
+      [
+        "サーバーのエラー(500)で、取り直しも失敗",
+        () => vi.fn().mockResolvedValue(jsonResponse({}, 500)),
+        "「未習得」の並べ替えの結果を確認できませんでした。画面は並べ替え前のままですが、サーバーでは並べ替えできている可能性があります。ページを再読み込みして、確かめてください。",
+        "HTTP 500",
+      ],
+      [
+        "接続できない",
+        () => vi.fn().mockRejectedValue(new TypeError("fetch failed")),
+        "「未習得」の並べ替えの結果を確認できませんでした。",
+        "API に接続できませんでした",
+      ],
+    ])("%s: 画面はそのままで、エラーを出し、もう一度押せる", async (_name, makeFetch, base, expected) => {
       vi.stubGlobal("fetch", makeFetch());
       const user = userEvent.setup();
       render(<Board initialSkills={sampleSkills()} today={TODAY} />);
@@ -228,16 +246,64 @@ describe("Board: 優先度順の並べ替え", () => {
       await user.click(sortButton("未習得"));
 
       const notice = await screen.findByRole("alert", { name: "お知らせ" });
-      expect(notice).toHaveTextContent("「未習得」を優先度順に並べ替えできませんでした。");
+      expect(notice).toHaveTextContent(base);
       expect(notice).toHaveTextContent(expected);
       expect(cardNames("未習得")).toEqual(["クレーム対応", "発注書の確認", "受発注システムの操作"]); // 変わらない
       expect(sortButton("未習得")).toBeEnabled();
     });
 
+    // 品質チェックの H3 と同じ考え方: 結果が分からない失敗のときは、サーバーの最新の一覧を取り直す
+    it("時間切れのとき、サーバーの最新の一覧を取り直して、それに合わせる(サーバーでは、並べ替えできていた場合)", async () => {
+      const serverList = sortByPriority(sampleSkills(), "unlearned").map(toApiSkill); // サーバーでは、並べ替えできていた
+      const fetchMock = vi
+        .fn()
+        .mockRejectedValueOnce(new DOMException("The operation timed out.", "TimeoutError"))
+        .mockResolvedValueOnce(jsonResponse(serverList));
+      vi.stubGlobal("fetch", fetchMock);
+      const user = userEvent.setup();
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+      await user.click(sortButton("未習得"));
+
+      const notice = await screen.findByRole("alert", { name: "お知らせ" });
+      expect(notice).toHaveTextContent("「未習得」の並べ替えの結果を確認できませんでした。サーバーの最新の状態に更新しました。");
+      expect(cardNames("未習得")).toEqual(["受発注システムの操作", "発注書の確認", "クレーム対応"]); // サーバーの状態(並べ替え済み)
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("サーバーが、はっきり断った(422・503)ときは、取り直さない(通信は1回だけ)", async () => {
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ errors: { base: ["サーバーが混み合っています。"] } }, 503));
+      vi.stubGlobal("fetch", fetchMock);
+      const user = userEvent.setup();
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+      await user.click(sortButton("未習得"));
+
+      await screen.findByRole("alert", { name: "お知らせ" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("並べ替えの通信中は、追加・編集・削除も、受け付けない", async () => {
+      const call = pending();
+      vi.stubGlobal("fetch", vi.fn().mockReturnValue(call.promise));
+      render(<Board initialSkills={sampleSkills()} today={TODAY} />);
+
+      fireEvent.click(sortButton("未習得"));
+      await waitFor(() => expect(sortButton("未習得")).toBeDisabled());
+
+      for (const button of screen.getAllByRole("button", { name: "+ スキルを追加" })) expect(button).toBeDisabled();
+      for (const button of screen.getAllByRole("button", { name: /を削除$/ })) expect(button).toBeDisabled();
+      fireEvent.click(screen.getByRole("heading", { name: "クレーム対応" }).closest("article")!);
+      expect(document.querySelector("dialog[open]")).toBeNull();
+
+      call.resolve(sortedResponse("unlearned"));
+      await waitFor(() => expect(sortButton("未習得")).toBeEnabled());
+    });
+
     it("そのあと、成功したら、エラーは消える", async () => {
       const fetchMock = vi
         .fn()
-        .mockResolvedValueOnce(jsonResponse({}, 500))
+        .mockResolvedValueOnce(jsonResponse({ errors: { base: ["サーバーが混み合っています。"] } }, 503))
         .mockResolvedValueOnce(sortedResponse("unlearned"));
       vi.stubGlobal("fetch", fetchMock);
       const user = userEvent.setup();
