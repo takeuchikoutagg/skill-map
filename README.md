@@ -114,7 +114,7 @@ Rails(API モード)と MySQL は、Docker で動かします。パソコンに 
 | Phase 1 | ドキュメントの作成 | 完了 |
 | Phase 2 | バックエンド(Rails API、MySQL、テスト) | 完了(API 6本、rubocop・brakeman の検査まで) |
 | Phase 3 | フロントエンド(Next.js) | 完了(ボードの表示、スキルの追加・編集・削除、ドラッグ&ドロップでの移動、優先度順の並べ替え、仕上げ) |
-| Phase 4 | AWS(EC2 + RDS)へのデプロイ | 未着手 |
+| Phase 4 | AWS(EC2 + RDS)へのデプロイ | 準備中([デプロイガイド](docs/07-デプロイガイド.md)は完成。次は、本番用の準備) |
 
 ## 今後の拡張
 
