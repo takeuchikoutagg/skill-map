@@ -80,6 +80,8 @@ describe("fetchSkills(一覧の取得)", () => {
 
     expect(skills).toEqual(sampleSkills());
     expect(fetchMock).toHaveBeenCalledWith("http://api.test/api/v1/skills", {
+      method: "GET",
+      headers: { Accept: "application/json" },
       cache: "no-store",
       signal: expect.any(AbortSignal),
     });
@@ -99,6 +101,8 @@ describe("fetchSkills(一覧の取得)", () => {
     await fetchSkills();
 
     expect(fetchMock).toHaveBeenCalledWith("http://from-env.test/api/v1/skills", {
+      method: "GET",
+      headers: { Accept: "application/json" },
       cache: "no-store",
       signal: expect.any(AbortSignal),
     });
@@ -131,6 +135,29 @@ describe("fetchSkills(一覧の取得)", () => {
 
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).messages).toEqual(["API の返事の形が正しくありません。"]);
+  });
+
+  it("配列の中の、1件でも、スキルの形でなければ、ApiError を投げる(壊れた返事で、優先度が undefined と出たり、カードが黙って消えたりしない)", async () => {
+    const broken = { ...toApiSkill(sampleSkills()[0]), status: "unknown-status" }; // 知らない状態
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([ broken ])));
+
+    const error = await fetchSkills("http://api.test").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).messages).toEqual(["API の返事の形が正しくありません。"]);
+  });
+
+  it("項目が欠けている(id が文字列、priority が知らない値、など)ときも、ApiError を投げる", async () => {
+    const cases = [
+      { ...toApiSkill(sampleSkills()[0]), id: "1" },
+      { ...toApiSkill(sampleSkills()[0]), priority: "urgent" },
+      { ...toApiSkill(sampleSkills()[0]), name: null },
+      { ...toApiSkill(sampleSkills()[0]), position: "0" },
+    ];
+    for (const broken of cases) {
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([ broken ])));
+      await expect(fetchSkills("http://api.test")).rejects.toBeInstanceOf(ApiError);
+    }
   });
 
   it("API の返事を待つ時間には、制限がある(10秒)", async () => {
@@ -281,6 +308,15 @@ describe("createSkill(スキルの追加)", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     await expect(createSkill("unlearned", input, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
   });
+
+  it("成功の返事が、スキル1件の形でなければ、ApiError を投げる(壊れた返事で、画面を壊さない)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ id: 9 }, 201))); // name などが、欠けている
+
+    const error = await createSkill("unlearned", input, "http://api.test").catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).messages).toEqual(["API の返事の形が正しくありません。"]);
+  });
 });
 
 describe("updateSkill(スキルの編集)", () => {
@@ -346,6 +382,12 @@ describe("updateSkill(スキルの編集)", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed")));
 
     await expect(updateSkill(7, input, "http://api.test")).rejects.toThrow("fetch failed");
+  });
+
+  it("成功の返事が、スキル1件の形でなければ、ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([ updated ]))); // 1件のはずが、配列で返ってきた
+
+    await expect(updateSkill(7, input, "http://api.test")).rejects.toBeInstanceOf(ApiError);
   });
 });
 
@@ -442,6 +484,12 @@ describe("requestMove(スキルの移動)", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
     await expect(requestMove(3, "mastered", 0, "http://api.test")).rejects.toMatchObject({ name: "TimeoutError" });
   });
+
+  it("成功の返事が、スキル1件の形でなければ、ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ ...moved, status: "unknown" })));
+
+    await expect(requestMove(3, "mastered", 0, "http://api.test")).rejects.toBeInstanceOf(ApiError);
+  });
 });
 
 describe("requestSort(優先度順の並べ替え)", () => {
@@ -493,6 +541,12 @@ describe("requestSort(優先度順の並べ替え)", () => {
 
   it("返事が配列でなければ、ApiError を投げる(壊れた返事で、画面を壊さない)", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ oops: true })));
+
+    await expect(requestSort("unlearned", "http://api.test")).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("配列の中の、1件でも、スキルの形でなければ、ApiError を投げる", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse([ { ...column[0], priority: "urgent" } ])));
 
     await expect(requestSort("unlearned", "http://api.test")).rejects.toBeInstanceOf(ApiError);
   });
