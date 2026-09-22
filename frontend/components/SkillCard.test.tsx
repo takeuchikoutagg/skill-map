@@ -55,3 +55,38 @@ describe("SkillCard のクリック", () => {
     expect(screen.getByRole("button", { name: "「請求書の発行」を削除" })).toHaveTextContent("削除");
   });
 });
+
+describe("SkillCard: 移動・並べ替えの通信中(busy)", () => {
+  it("busy のとき、カードやスキル名をクリックしても、onEdit は呼ばれない", async () => {
+    const onEdit = vi.fn();
+    render(<SkillCard skill={makeSkill({ id: 1, name: "レジ締め" })} today="2026-09-20" onEdit={onEdit} onDelete={vi.fn()} busy />);
+
+    await userEvent.click(screen.getByRole("heading", { name: "レジ締め" }).closest("article")!);
+    await userEvent.click(screen.getByRole("button", { name: "レジ締め" }));
+
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  it("busy のとき、削除ボタンは押せず、onDelete は呼ばれない", async () => {
+    const onDelete = vi.fn();
+    render(<SkillCard skill={makeSkill({ id: 1, name: "レジ締め" })} today="2026-09-20" onEdit={vi.fn()} onDelete={onDelete} busy />);
+
+    const button = screen.getByRole("button", { name: "「レジ締め」を削除" });
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("busy でなければ(既定)、これまでどおり、編集も削除もできる", async () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    render(<SkillCard skill={makeSkill({ id: 1, name: "レジ締め" })} today="2026-09-20" onEdit={onEdit} onDelete={onDelete} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "レジ締め" }));
+    await userEvent.click(screen.getByRole("button", { name: "「レジ締め」を削除" }));
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+});

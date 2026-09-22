@@ -9,7 +9,7 @@ import type { Skill } from "@/lib/types";
 type Props = {
   skill: Skill;
   today: string;
-  disabled: boolean; // ドラッグできないか(移動の通信中は、次のドラッグを受け付けない)
+  disabled: boolean; // 移動・並べ替えの通信中か(通信中は、次のドラッグ・編集・削除を受け付けない)
   onEdit: (skill: Skill) => void;
   onDelete: (skill: Skill) => void;
 };
@@ -36,6 +36,7 @@ export function SortableSkillCard({ skill, today, disabled, onEdit, onDelete }: 
       onEdit={onEdit}
       onDelete={onDelete}
       dragging={isDragging}
+      busy={disabled}
       drag={{
         ref: setRef,
         style: { transform: CSS.Transform.toString(transform), transition },

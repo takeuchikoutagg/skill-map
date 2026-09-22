@@ -16,17 +16,18 @@ type Props = {
   drag?: CardDragProps; // ドラッグできるカードにするための属性(なければ、ただの表示)
   dragging?: boolean; // いま、このカードをドラッグしているか(元の場所に残る、薄いカード)
   overlay?: boolean; // ドラッグ中に、カーソルについて動く、コピーのカードか(クリックには、反応しない)
+  busy?: boolean; // 移動・並べ替えの通信中か(通信中は、編集・削除を受け付けない。通信の結果と、食い違う変更が、重ならないように)
 };
 
 // スキル1件のカード。docs/03-画面一覧.md の「スキルカード」の表示項目どおり。
-export function SkillCard({ skill, today, onEdit, onDelete, drag, dragging = false, overlay = false }: Props) {
+export function SkillCard({ skill, today, onEdit, onDelete, drag, dragging = false, overlay = false, busy = false }: Props) {
   const overdue = isOverdue(skill, today);
   const className = `card${dragging ? " dragging" : ""}${overlay ? " overlay" : ""}`;
 
   return (
     // カードのどこをクリックしても、編集フォームが開く(少し動かすと、ドラッグになる)。
     // キーボードで操作する人のために、スキル名は、ボタンにしてある
-    <article {...drag} className={className} onClick={overlay ? undefined : () => onEdit(skill)}>
+    <article {...drag} className={className} onClick={overlay || busy ? undefined : () => onEdit(skill)}>
       <h3>
         <button type="button" className="card-title" tabIndex={overlay ? -1 : undefined}>
           {skill.name}
@@ -50,6 +51,7 @@ export function SkillCard({ skill, today, onEdit, onDelete, drag, dragging = fal
         type="button"
         className="delete"
         tabIndex={overlay ? -1 : undefined}
+        disabled={busy}
         aria-label={`「${skill.name}」を削除`}
         onClick={(event) => {
           event.stopPropagation(); // カード全体のクリック(編集を開く)まで、働かせない

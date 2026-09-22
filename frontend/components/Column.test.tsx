@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Column } from "@/components/Column";
 import { makeSkill } from "@/lib/fixtures";
@@ -17,7 +17,7 @@ vi.mock("@dnd-kit/sortable", async () => {
 });
 
 const noop = () => {};
-const props = { status: "learning" as const, today: "2026-09-20", onAdd: noop, onEdit: noop, onDelete: noop, onSort: noop, sortDisabled: false, sorting: false, highlighted: false, dragDisabled: false };
+const props = { status: "learning" as const, today: "2026-09-20", onAdd: noop, onEdit: noop, onDelete: noop, onSort: noop, sortDisabled: false, sorting: false, highlighted: false, busy: false };
 
 beforeEach(() => {
   received.items = [];
@@ -61,5 +61,15 @@ describe("Column が、SortableContext に渡す、カードの id の並び", (
 
     rerender(<Column {...props} skills={[]} />);
     expect(received.items.at(-1)).toEqual([]);
+  });
+});
+
+describe("Column: 移動・並べ替えの通信中(busy)", () => {
+  it("busy のとき、「+ スキルを追加」は押せない。busy でなければ、押せる", () => {
+    const { rerender } = render(<Column {...props} skills={[makeSkill({ id: 1 })]} busy />);
+    expect(screen.getByRole("button", { name: "+ スキルを追加" })).toBeDisabled();
+
+    rerender(<Column {...props} skills={[makeSkill({ id: 1 })]} busy={false} />);
+    expect(screen.getByRole("button", { name: "+ スキルを追加" })).toBeEnabled();
   });
 });

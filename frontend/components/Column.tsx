@@ -19,10 +19,10 @@ type Props = {
   sortDisabled: boolean; // 「優先度順」を押せないか(並べ替え・移動の通信中、ドラッグ中)
   sorting: boolean; // この列の、並べ替えの通信中か(ボタンに「並べ替え中…」と出す)
   highlighted: boolean; // ドラッグ中に、ここに置かれる列か(枠を強調する)
-  dragDisabled: boolean; // ドラッグできないか(移動の通信中)
+  busy: boolean; // 移動・並べ替えの通信中か(通信中は、ドラッグ・編集・削除・追加を受け付けない)
 };
 
-export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort, sortDisabled, sorting, highlighted, dragDisabled }: Props) {
+export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort, sortDisabled, sorting, highlighted, busy }: Props) {
   // 列そのものを、ドロップ先にする(空の列にも、カードを置けるように)
   const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const headingId = `list-${status}`;
@@ -72,13 +72,13 @@ export function Column({ status, skills, today, onAdd, onEdit, onDelete, onSort,
         {skills.length === 0 && <p className="empty">スキルがありません</p>}
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           {skills.map((skill) => (
-            <SortableSkillCard key={skill.id} skill={skill} today={today} disabled={dragDisabled} onEdit={onEdit} onDelete={onDelete} />
+            <SortableSkillCard key={skill.id} skill={skill} today={today} disabled={busy} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </SortableContext>
       </div>
 
       {editable && (
-        <button type="button" className="add-skill" aria-describedby={headingId} onClick={() => onAdd(status)}>
+        <button type="button" className="add-skill" aria-describedby={headingId} disabled={busy} onClick={() => onAdd(status)}>
           + スキルを追加
         </button>
       )}

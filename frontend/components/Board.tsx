@@ -18,7 +18,17 @@ import { Column } from "@/components/Column";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { SkillCard } from "@/components/SkillCard";
 import { SkillForm } from "@/components/SkillForm";
-import { ApiError, browserApiUrl, createSkill, deleteSkill, fetchSkills, requestMove, requestSort, updateSkill } from "@/lib/api";
+import {
+  ApiError,
+  browserApiUrl,
+  createSkill,
+  deleteSkill,
+  fetchSkills,
+  isRejectedByServer,
+  requestMove,
+  requestSort,
+  updateSkill,
+} from "@/lib/api";
 import { groupByStatus, moveSkill, removeSkill, replaceColumn, replaceSkill, type SkillInput } from "@/lib/board";
 import { detectCollisions } from "@/lib/collision";
 import {
@@ -53,7 +63,9 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   const [form, setForm] = useState<FormTarget | null>(null); // 追加・編集フォームの、開いている中身(閉じているときは null)
   const [deleting, setDeleting] = useState<Skill | null>(null); // 削除の確認ダイアログの、対象(閉じているときは null)
   const [notice, setNotice] = useState<Notice | null>(null); // 画面の上に出す、お知らせ
-  const [busy, setBusy] = useState(false); // 移動・並べ替えの通信中か(通信中は、次のドラッグと並べ替えを受け付けない)
+  // 移動・並べ替えの通信中か。通信中は、次のドラッグ・並べ替え・追加・編集・削除を、受け付けない。
+  // (通信の結果を、画面に反映するときに、そのあいだにあった、ほかの変更を、巻き戻したり、上書きしたりしないため)
+  const [busy, setBusy] = useState(false);
   const [sortingStatus, setSortingStatus] = useState<Status | null>(null); // 並べ替えの通信中の列(ボタンの表示用)
   const focusAfterRender = useRef<Status | null>(null); // 次の描画のあとに、フォーカスを移す列(削除のあと)
   const sortingRef = useRef(false); // 並べ替えの通信中か(同じ瞬間の、2回目のクリックも防ぐため、画面の更新を待たずに読める形で持つ)
@@ -96,15 +108,21 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
     lastOverId.current = null;
   }
 
-  // 別の場所で、すでに削除されていた(404)ときに、API から最新の一覧を取り直す。取り直せたら true
-  async function refreshFromServer(message: string): Promise<boolean> {
+  // API から、最新の一覧を取り直して、画面に反映する。取り直せたら true
+  async function reloadSkills(): Promise<boolean> {
     try {
       setSkills(await fetchSkills(browserApiUrl()));
-      setNotice({ text: message, tone: "info" });
       return true;
     } catch {
-      return false; // 取り直せなかったときは、もとのエラーを、フォームやダイアログに表示する
+      return false;
     }
+  }
+
+  // 別の場所で、すでに削除されていた(404)ときに、最新の一覧を取り直して、お知らせを出す。取り直せたら true
+  async function refreshFromServer(message: string): Promise<boolean> {
+    const reloaded = await reloadSkills();
+    if (reloaded) setNotice({ text: message, tone: "info" });
+    return reloaded; // 取り直せなかったときは、もとのエラーを、フォームやダイアログに表示する
   }
 
   // 追加・編集フォームの「保存」。成功したら、画面に反映して、フォームを閉じる。
@@ -190,7 +208,11 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
   }
 
   // 移動する。先に画面を更新して(待たせない)、API に送る。成功したら、サーバーが決めた値(習得日など)で更新する。
-  // 失敗したら、元の位置に戻して、エラーを出す。
+  // 失敗したときは、失敗の種類で、分ける:
+  //   サーバーが、はっきり断った(4xx、503): 何も変わっていないので、元の位置に戻す。
+  //   結果が分からない(時間切れ、接続断、500 など): サーバーでは、移動できているかもしれない。最新の一覧を取り直して、それに合わせる。
+  //     取り直せなければ、元の位置に戻して表示しつつ、再読み込みして確かめるよう、案内する。
+  // 「元に戻す」のは、通信の前の一覧に、丸ごと戻すこと。通信中は、ほかの変更が起きない(busy)ので、それで、正しい。
   async function commitMove(id: number, target: DropTarget) {
     const moved = skills.find((skill) => skill.id === id);
     if (!moved) return;
@@ -208,18 +230,28 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
         const refreshed = await refreshFromServer(`「${moved.name}」は、すでに削除されていました。最新の状態に更新しました。`);
         if (refreshed) return;
       }
-      setSkills(previous);
-      setNotice({
-        text: `「${moved.name}」を移動できませんでした。元の位置に戻しました。${toFormErrors(error).general ?? ""}`,
-        tone: "error",
-      });
+
+      const detail = toFormErrors(error).general ?? "";
+      if (isRejectedByServer(error)) {
+        setSkills(previous);
+        setNotice({ text: `「${moved.name}」を移動できませんでした。元の位置に戻しました。${detail}`, tone: "error" });
+      } else if (await reloadSkills()) {
+        setNotice({ text: `「${moved.name}」の移動の結果を確認できませんでした。サーバーの最新の状態に更新しました。${detail}`, tone: "error" });
+      } else {
+        setSkills(previous);
+        setNotice({
+          text: `「${moved.name}」の移動の結果を確認できませんでした。元の位置に戻して表示していますが、サーバーでは移動できている可能性があります。ページを再読み込みして、確かめてください。${detail}`,
+          tone: "error",
+        });
+      }
     } finally {
       setBusy(false);
     }
   }
 
   // 「優先度順」。API に頼んで、返ってきた「その列のスキル」で、列を置き換える(並び順は、サーバーが決めた値)。
-  // 失敗したら、画面はそのままで、エラーを出す。
+  // 失敗したら、画面はそのままで、エラーを出す。ただし、結果が分からない失敗(時間切れ、接続断、500 など)のときは、
+  // サーバーでは、並べ替えできているかもしれないので、最新の一覧を取り直す(取り直せなければ、再読み込みして確かめるよう、案内する)。
   async function handleSort(status: Status) {
     // 通信中・ドラッグ中は、ボタンが押せない(sortDisabled)。ここでは、同じ瞬間の2回目のクリックだけを、防ぐ(画面の更新を待たない)
     if (status === "mastered" || sortingRef.current) return;
@@ -232,10 +264,18 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
       const sorted = await requestSort(status);
       setSkills((current) => replaceColumn(current, status, sorted));
     } catch (error) {
-      setNotice({
-        text: `「${STATUS_LABELS[status]}」を優先度順に並べ替えできませんでした。${toFormErrors(error).general ?? ""}`,
-        tone: "error",
-      });
+      const label = STATUS_LABELS[status];
+      const detail = toFormErrors(error).general ?? "";
+      if (isRejectedByServer(error)) {
+        setNotice({ text: `「${label}」を優先度順に並べ替えできませんでした。${detail}`, tone: "error" });
+      } else if (await reloadSkills()) {
+        setNotice({ text: `「${label}」の並べ替えの結果を確認できませんでした。サーバーの最新の状態に更新しました。${detail}`, tone: "error" });
+      } else {
+        setNotice({
+          text: `「${label}」の並べ替えの結果を確認できませんでした。画面は並べ替え前のままですが、サーバーでは並べ替えできている可能性があります。ページを再読み込みして、確かめてください。${detail}`,
+          tone: "error",
+        });
+      }
     } finally {
       sortingRef.current = false;
       setSortingStatus(null);
@@ -292,6 +332,8 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
               status={status}
               skills={columns[status]}
               today={today}
+              // busy(通信中)の間は、「+ スキルを追加」・カードのクリック・「削除」が、それぞれ無効化されるので、
+              // これらのハンドラーは、実質、押せる(busy でない)ときにしか、呼ばれない
               onAdd={(addStatus) => setForm({ kind: "add", status: addStatus })}
               onEdit={(skill) => setForm({ kind: "edit", skill })}
               onDelete={setDeleting}
@@ -299,7 +341,7 @@ export function Board({ initialSkills, today }: { initialSkills: Skill[]; today:
               sortDisabled={busy || activeId !== null}
               sorting={sortingStatus === status}
               highlighted={dropStatus === status}
-              dragDisabled={busy}
+              busy={busy}
             />
           ))}
         </main>
