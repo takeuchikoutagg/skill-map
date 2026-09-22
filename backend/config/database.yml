@@ -17,6 +17,10 @@ default: &default
   username: <%= ENV.fetch("DB_USER") { "root" } %>
   password: <%= ENV.fetch("DB_PASSWORD") { "" } %>
   host: <%= ENV.fetch("DB_HOST") { "127.0.0.1" } %>
+  # ロックを待つ時間(秒)。既定の 50 秒だと、画面の通信の時間切れ(10 秒)より長く、待たされ続けてしまう。
+  # 待ちきれなかったときは、503 を返す(ApplicationController)
+  variables:
+    innodb_lock_wait_timeout: 5
 
 development:
   <<: *default

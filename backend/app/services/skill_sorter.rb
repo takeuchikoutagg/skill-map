@@ -25,10 +25,7 @@ class SkillSorter
   def call
     return false unless valid_request?
 
-    Skill.transaction do
-      lock_skills
-      sort_and_save
-    end
+    BoardLock.synchronize { sort_and_save }
     true
   end
 
@@ -46,11 +43,6 @@ class SkillSorter
     end
 
     errors.empty?
-  end
-
-  # 同時に、移動や並べ替えが起きても、順番に処理する(SkillMover と同じ)
-  def lock_skills
-    Skill.order(:id).lock.pluck(:id)
   end
 
   def sort_and_save

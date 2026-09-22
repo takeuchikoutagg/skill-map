@@ -26,24 +26,14 @@ module Api
       # POST /api/v1/skills
       # スキルを追加する。追加したスキルは、指定した状態の列の末尾に置く。
       # 習得済みの列には、直接追加できない(習得済みにするには、追加したあとに移動する)。
+      # 並び順の決定と保存は、SkillCreator が、ロックの中でまとめて行う。
       def create
-        skill = Skill.new(create_params)
+        creator = SkillCreator.new(create_params)
 
-        if skill.mastered?
-          skill.errors.add(:base, "習得済みの列には、スキルを直接追加できません。未習得か習得中に追加してから、移動してください。")
-          return render_errors(skill)
-        end
-
-        # 並び順の決定と保存は、まとめて行う(途中で失敗したら、どちらもなかったことにする)
-        saved = Skill.transaction do
-          skill.position = Skill.statuses.key?(skill.status) ? Skill.next_position(skill.status) : 0
-          skill.save
-        end
-
-        if saved
-          render json: skill.as_json(only: RESPONSE_FIELDS), status: :created
+        if creator.call
+          render json: creator.skill.as_json(only: RESPONSE_FIELDS), status: :created
         else
-          render_errors(skill)
+          render_errors(creator.skill)
         end
       end
 
@@ -97,14 +87,9 @@ module Api
 
       # DELETE /api/v1/skills/:id
       # スキルを削除し、同じ状態の列の並び順を詰める(0 から連番に振り直す)。
-      # 削除と振り直しは、まとめて行う(途中で失敗したら、削除もなかったことにする)。
+      # 削除と振り直しは、SkillDestroyer が、ロックの中でまとめて行う(途中で失敗したら、削除もなかったことにする)。
       def destroy
-        skill = Skill.find(params[:id])
-
-        Skill.transaction do
-          skill.destroy!
-          Skill.renumber_positions(skill.status)
-        end
+        SkillDestroyer.new(params[:id]).call
 
         head :no_content
       end
