@@ -1,0 +1,75 @@
+# コミット・Pull Request のたびに、バックエンドとフロントエンドの、まとめた検査を実行する。
+# 中身は、手元で実行しているものと同じ(backend/bin/ci、frontend の npm run check)。
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# 同じブランチへの、新しい push があったら、前の実行は取りやめる(無駄な実行を減らす)
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: バックエンド(bin/ci)
+    runs-on: ubuntu-latest
+    # MySQL を、サービスコンテナとして、一緒に立ち上げる(docker-compose.yml の db と、同じ設定)
+    services:
+      db:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ppassword --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      RAILS_ENV: test
+      DB_HOST: 127.0.0.1
+      DB_USER: root
+      DB_PASSWORD: password
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: backend
+          bundler-cache: true # Gemfile.lock から、gem をキャッシュする
+
+      - name: データベースを用意する
+        run: bin/rails db:prepare
+
+      - name: まとめて検査する(rubocop・bundler-audit・brakeman・RSpec)
+        run: bin/ci
+
+  frontend:
+    name: フロントエンド(npm run check)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: まとめて検査する(ESLint・型検査・テスト・ビルド)
+        run: npm run check
+
+      - name: 依存パッケージの脆弱性を確認する
+        run: npm audit --audit-level=high
