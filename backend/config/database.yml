@@ -53,8 +53,10 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 #
+# 接続先(ホスト・ユーザー・パスワード)は、開発と同じ環境変数(DB_HOST・DB_USER・DB_PASSWORD)で受け取る。
+# 本番は、docker-compose.prod.yml の環境変数ファイル(backend/.env.production)で、値だけを変える。
+# 既定のユーザー名は "backend"(RDS 側にも、このユーザーを作る。docs/07-デプロイガイド.md の P4)。
 production:
   <<: *default
   database: backend_production
-  username: backend
-  password: <%= ENV["BACKEND_DATABASE_PASSWORD"] %>
+  username: <%= ENV.fetch("DB_USER") { "backend" } %>

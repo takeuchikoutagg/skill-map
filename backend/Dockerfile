@@ -1,9 +1,13 @@
 # syntax=docker/dockerfile:1
 # check=error=true
 
-# This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t backend .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name backend backend
+# This Dockerfile is designed for production, not development.
+# 開発では使わない(開発は backend/start.sh、Docker Compose)。前段に、Nginx を置く構成を、前提にしている(docs/06)。
+#   docker build -t skill-map-backend .
+#   docker run -d -p 3000:3000 \
+#     -e RAILS_MASTER_KEY=<config/master.key の値> \
+#     -e DB_HOST=<RDS のエンドポイント> -e DB_USER=backend -e DB_PASSWORD=<パスワード> \
+#     --name backend skill-map-backend
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
@@ -24,7 +28,7 @@ RUN apt-get update -qq && \
 ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
-    BUNDLE_WITHOUT="development" \
+    BUNDLE_WITHOUT="development:test" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so"
 
 # Throw-away build stage to reduce size of final image
@@ -69,6 +73,9 @@ COPY --chown=rails:rails --from=build /rails /rails
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Start server via Thruster by default, this can be overwritten at runtime
-EXPOSE 80
-CMD ["./bin/thrust", "./bin/rails", "server"]
+# Thruster(gem・bin/thrust)は、使わない。前段に Nginx がいるので、二重のプロキシにしない(docs/08 の M5)。
+# ポート・待ち受けは、config/puma.rb の既定(PORT 環境変数。既定 3000、すべての相手を受け付ける)に任せる。
+# CMD は、"./bin/rails" と "server" の、この2つの形のまま(bin/docker-entrypoint が、この並びを見て、
+# db:prepare を実行するかを判断している)。
+EXPOSE 3000
+CMD ["./bin/rails", "server"]
