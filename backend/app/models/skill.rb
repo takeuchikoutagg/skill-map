@@ -11,12 +11,19 @@ class Skill < ApplicationRecord
   # スキル名の前後の空白は、取り除いて保存する(全角スペースも。Ruby の strip は半角の空白しか取らないため)
   normalizes :name, with: ->(name) { name.gsub(/\A[[:space:]]+|[[:space:]]+\z/, "") }
 
+  # ポイント・考察は、空文字("")を、空(nil)として保存する(docs/02-機能要件.md の「空で消せる」に合わせる)。
+  # 空文字のままだと、「消えた」ことを、null と "" のどちらでも表せてしまい、画面側の判定が、揺れるため。
+  normalizes :note, with: ->(note) { note.presence }
+
   validates :name, presence: true, length: { maximum: 100 }
   validates :note, length: { maximum: 5000 }
   validates :position, presence: true,
                        numericality: { only_integer: true, greater_than_or_equal_to: 0 }
   validate :due_date_must_be_a_date
   validate :acquired_on_matches_status
+
+  # MySQL の DATE 型で扱える、年の範囲(DATE '1000-01-01' 〜 '9999-12-31')
+  DATE_YEAR_RANGE = 1000..9999
 
   # 同じ状態の列の、末尾に置くときの並び順(列が空なら 0)
   def self.next_position(status)
@@ -44,12 +51,21 @@ class Skill < ApplicationRecord
     end
   end
 
-  # 期限に、日付として読めない値("abc" や存在しない日付)が送られたときは、黙って空にせず、エラーにする。
-  # (Rails は、日付にできない値を、エラーを出さずに nil にしてしまうため)
+  # 期限は、"YYYY-MM-DD" の形の文字列だけを受け付ける(docs/02-機能要件.md)。
+  # 読めない値("abc")、存在しない日付("2026-02-30")、この形でない値("2026/10/31"、日時つきなど)は、
+  # 黙って空にせず、エラーにする(Rails は、日付にできない値を、エラーを出さずに nil にしてしまうため)。
+  # MySQL の DATE 型の範囲外の年(西暦1000年より前、9999年より後)も、エラーにする。
   def due_date_must_be_a_date
     raw = due_date_before_type_cast
-    return if raw.blank? || due_date.present?
+    return if raw.blank?
 
-    errors.add(:due_date, :invalid)
+    if raw.is_a?(String) && !raw.match?(/\A\d{4}-\d{2}-\d{2}\z/)
+      errors.add(:due_date, :invalid)
+      return
+    end
+
+    if due_date.blank? || !DATE_YEAR_RANGE.cover?(due_date.year)
+      errors.add(:due_date, :invalid)
+    end
   end
 end

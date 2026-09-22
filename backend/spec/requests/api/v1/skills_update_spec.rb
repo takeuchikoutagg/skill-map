@@ -65,6 +65,13 @@ RSpec.describe "PATCH /api/v1/skills/:id", type: :request do
       expect(response).to have_http_status(:ok)
     end
 
+    it "ポイント・考察は、空文字でも、null として保存される(null と、同じ扱いになる)" do
+      patch_skill(skill.id, note: "")
+
+      expect(json["note"]).to be_nil
+      expect(skill.reload.note).to be_nil
+    end
+
     it "スキル名の前後の空白は、全角スペースも含めて取り除く" do
       patch_skill(skill.id, name: "　請求書の発行 ")
 

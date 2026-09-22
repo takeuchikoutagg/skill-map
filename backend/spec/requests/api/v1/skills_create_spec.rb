@@ -18,6 +18,14 @@ RSpec.describe "POST /api/v1/skills", type: :request do
       expect(json).to include(
         "name" => "レジ締め",
         "note" => nil,
+      )
+    end
+
+    it "ポイント・考察に空文字を送ると、null として保存される" do
+      post_skill(name: "レジ締め", note: "")
+
+      expect(json).to include(
+        "note" => nil,
         "status" => "unlearned",
         "priority" => "medium",
         "due_date" => nil,
