@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ErrorPage from "@/app/error";
@@ -37,6 +37,15 @@ describe("app/error.tsx(予期しないエラーのときの画面)", () => {
 
     expect(spy).toHaveBeenCalledWith(error);
   });
+
+  it("main のランドマークが残る(role=\"alert\" は、main を上書きしない)", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<ErrorPage error={new Error("壊れた")} retry={() => {}} />);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByRole("alert")).toBeInTheDocument();
+  });
 });
 
 describe("app/loading.tsx(読み込み中の画面)", () => {
@@ -44,5 +53,12 @@ describe("app/loading.tsx(読み込み中の画面)", () => {
     render(<Loading />);
 
     expect(screen.getByRole("status")).toHaveTextContent("読み込み中…");
+  });
+
+  it("main のランドマークが残る(role=\"status\" は、main を上書きしない)", () => {
+    render(<Loading />);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(within(screen.getByRole("main")).getByRole("status")).toBeInTheDocument();
   });
 });

@@ -10,13 +10,16 @@ export default function ErrorPage({ error, retry }: { error: Error & { digest?: 
   }, [error]);
 
   return (
-    <main className="load-error" role="alert">
-      <h2>画面の表示中に、エラーが起きました</h2>
-      <p>一時的な問題かもしれません。保存済みのスキルは、失われていません。</p>
-      <p className="hint">「再読み込み」を押しても直らないときは、ブラウザのページを再読み込みしてください。</p>
-      <button type="button" className="btn primary" onClick={() => retry()}>
-        再読み込み
-      </button>
+    // role="alert" は、main ではなく、中の div に付ける(main の、ランドマークとしての役割を消さないため)
+    <main className="load-error">
+      <div role="alert">
+        <h2>画面の表示中に、エラーが起きました</h2>
+        <p>一時的な問題かもしれません。保存済みのスキルは、失われていません。</p>
+        <p className="hint">「再読み込み」を押しても直らないときは、ブラウザのページを再読み込みしてください。</p>
+        <button type="button" className="btn primary" onClick={() => retry()}>
+          再読み込み
+        </button>
+      </div>
     </main>
   );
 }
