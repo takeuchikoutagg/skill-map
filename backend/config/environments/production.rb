@@ -18,11 +18,17 @@ Rails.application.configure do
   # Enable serving of images, stylesheets, and JavaScripts from an asset server.
   # config.asset_host = "http://assets.example.com"
 
+  # HTTPS(SSL)を使うかどうか。既定は、いまの構成(Nginx が、HTTP だけを受ける)に合わせて false。
+  # 前段の Nginx が、HTTPS を受けて、Rails には HTTP で転送するようになったら、環境変数を true にする。
+  # true のまま、HTTP しかない構成で動かすと、HTTPS への無限リダイレクトになるので、注意する
+  # (docs/07-デプロイガイド.md P1 で、実際に curl して確認した)。
+  force_ssl = ENV.fetch("FORCE_SSL", "false") == "true"
+
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
-  config.assume_ssl = true
+  config.assume_ssl = force_ssl
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
-  config.force_ssl = true
+  config.force_ssl = force_ssl
 
   # Skip http-to-https redirect for the default health check endpoint.
   # config.ssl_options = { redirect: { exclude: ->(request) { request.path == "/up" } } }
@@ -64,4 +70,9 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # config.hosts は、設定しない(あえて)。EC2 のパブリック DNS は、インスタンスを作り直すたびに変わり、
+  # 固定しづらい。このアプリは、EC2 のセキュリティグループで、通信できる相手(自分の IP だけ)を絞っているので、
+  # Host ヘッダーの検証がなくても、外部から任意のホストで叩かれるリスクは、限定的(docs/07-デプロイガイド.md 2.3)。
+  # 将来、ドメインを固定するなら、ここに、そのホスト名を設定する。
 end
