@@ -7,7 +7,9 @@
 
 実際に AWS(EC2 + RDS)へデプロイした環境で、操作している様子です(追加・編集・ドラッグ&ドロップ・優先度順の並べ替え・削除)。
 
-**[▶ 動画を再生する](docs/assets/demo.mp4)**(GitHub 上で、ダウンロードせずに、そのまま再生できます)
+https://github.com/user-attachments/assets/9625ea3c-d153-430c-9ab6-3f88dc163483
+
+再生されないときは、[動画ファイルを開く](docs/assets/demo.mp4)。
 
 ## 背景
 
