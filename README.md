@@ -7,9 +7,7 @@
 
 実際に AWS(EC2 + RDS)へデプロイした環境で、操作している様子です(追加・編集・ドラッグ&ドロップ・優先度順の並べ替え・削除)。
 
-<video src="https://github.com/takeuchikoutagg/skill-map/raw/main/docs/assets/demo.mov" controls width="600"></video>
-
-再生されないときは、[動画ファイルを直接開く](docs/assets/demo.mov)。
+**[▶ 動画を再生する](docs/assets/demo.mov)**(GitHub 上で、ダウンロードせずに、そのまま再生できます)
 
 ## 背景
 
