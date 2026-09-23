@@ -160,7 +160,10 @@ resource "aws_instance" "web" {
   monitoring = false # 詳細モニタリングは、有料の追加機能なのでオフ(docs/07 の 4.2)
 
   root_block_device {
-    volume_size           = 8 # GB(標準の大きさのまま。docs/07 の 4.2)
+    # 30GB(EBS の無料利用枠の上限。docs/07 の 1.4)。8GB では作れなかった: このAMI(AL2023 の
+    # 最新版)のスナップショットが、30GB 以上を要求するため(実際に apply して分かった。
+    # InvalidBlockDeviceMapping: Volume of size 8GB is smaller than snapshot, expect size >= 30GB)
+    volume_size           = 30
     volume_type           = "gp3"
     delete_on_termination = true # EC2 を終了すると、ディスクも一緒に消える(docs/07 の 1.5)
   }

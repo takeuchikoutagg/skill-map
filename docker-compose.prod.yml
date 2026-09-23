@@ -10,6 +10,7 @@ name: skill-map
 services:
   nginx:
     build: ./nginx
+    image: skill-map-nginx:latest # Mac でビルドし、EC2 には image: の名前で読み込む(P6)
     ports:
       - "80:80"
     depends_on:
@@ -22,6 +23,7 @@ services:
       context: ./frontend
       # NEXT_PUBLIC_API_URL は、ここでは指定しない(既定の空のままでよい)。
       # Nginx が同じオリジンで振り分けるため、ブラウザは相対パスで API を呼ぶ(frontend/Dockerfile を参照)
+    image: skill-map-frontend:latest # 同上
     env_file:
       - ./frontend/.env.production
     depends_on:
@@ -30,6 +32,7 @@ services:
 
   web:
     build: ./backend
+    image: skill-map-backend:latest # 同上
     env_file:
       - ./backend/.env.production
     restart: unless-stopped
